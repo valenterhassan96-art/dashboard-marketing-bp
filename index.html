@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard de Marketing — Bom Preço</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.js"></script>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',system-ui,sans-serif;background:#f5f6fa}
+  ::-webkit-scrollbar{width:6px;height:6px}
+  ::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:99px}
+  ::-webkit-scrollbar-track{background:transparent}
+  a{color:#37d899;text-decoration:none}
+  a:hover{color:#22c789}
+  select:focus,textarea:focus,input:focus{outline:none}
+  button{font-family:inherit}
+  @keyframes omGrow{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+  @keyframes omGrowX{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+  @keyframes omFlow{0%{background-position:50% 0%}100%{background-position:50% 300%}}
+  @keyframes omFlowX{0%{background-position:0% 50%}100%{background-position:300% 50%}}
+  @keyframes omFade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+/* ============================================================
+   DASHBOARD DE MARKETING — BOM PREÇO
+   Porte standalone (sem runtime proprietário) do design
+   "Dashboard Marketing.dc.html" exportado do Claude Design.
+   ------------------------------------------------------------
+   COMO ATUALIZAR OS DADOS
+   1) Manual: edite o objeto DATA abaixo.
+   2) Google Sheet (tempo real): publique a planilha como CSV
+      (Arquivo > Compartilhar > Publicar na web > CSV) e cole a
+      URL em CONFIG.SHEET_CSV_URL. O dashboard passa a ler dela
+      e atualiza sozinho a cada CONFIG.REFRESH_MS. Formato da
+      planilha em dados-modelo.csv / README.md.
+   ============================================================ */
+
+const CONFIG = {
+  // Deixe vazio para usar os dados embutidos abaixo.
+  // Cole aqui a URL CSV publicada da Google Sheet para ligar o tempo real.
+  SHEET_CSV_URL: '',
+  // Intervalo de atualização automática (ms). 60000 = 1 min.
+  REFRESH_MS: 60000,
+  // Opcional: endpoint próprio para o assistente de IA (POST {messages,system}).
+  // Vazio => o chat responde com uma mensagem de "configure a IA".
+  CHAT_ENDPOINT: '',
+};
+
+const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho'];
+let ATUALIZACAO = '22/07/2026';
+const CURIDX = 6; // Julho = mês atual
+
+// ---- DADOS REAIS (fonte: ANALITICS BOM PREÇO - MARKETING.xlsx) ----
+let DATA = {
+  loja: {
+    fat2025:  [13164797,11874843,13595426,13911070,14338462,13642102,13544477],
+    fat:      [15158040,13623023,14857028,14414040,15832627,15191393,11412214.97],
+    crescMes: [0.0276,-0.1013,0.0906,-0.0298,0.0984,-0.0405,-0.2488],
+    notas:    [299546,268752,293583,279687,304430,294240,212791],
+    ticket:   [50.60,50.69,50.61,51.54,52.01,51.63,53.63],
+  },
+  site: {
+    fat:       [null,null,35546.51,49483.20,34248.19,46975.08,45194.12],
+    crescMes:  [null,null,null,0.3921,-0.3079,0.3716,-0.0379],
+    notas:     [0,0,0,null,559,688,556],
+    ticket:    [null,null,null,null,null,68.28,81.28],
+    visitas:   [35180,32647,33262,55418,58067,53662,30795],
+    conversao: [null,null,null,null,null,0.0128,0.0181],
+  },
+  callcenter: {
+    fat:      [null,207080.84,227961.30,222618.18,231817.84,236315.17,114267.81],
+    crescMes: [null,null,null,null,null,0.0194,-0.5165],
+    notas:    [0,1772,1992,0,2157,2269,1092],
+    ticket:   [null,null,null,null,null,104.15,104.64],
+  },
+  ifood: {
+    fat:      [744632.49,665119.96,768380.86,782049.72,866842.23,839994.96,612441],
+    crescMes: [null,-0.1068,0.1553,0.0178,0.1084,-0.0310,-0.2709],
+    notas:    [10766,9521,10882,10652,12099,11567,8182],
+    ticket:   [null,null,null,null,null,72.62,74.85],
+  },
+};
+
+const BUDGET = [
+  { grupo:'Tráfego Pago', item:'Tráfego Pago', valor:60000 },
+  { grupo:'Tráfego Pago', item:'Rede', valor:25000 },
+  { grupo:'Tráfego Pago', item:'V8', valor:35000 },
+  { grupo:'Rede & Unidades', item:'Rede', valor:35000 },
+  { grupo:'Rede & Unidades', item:'Unidades', valor:12000 },
+  { grupo:'Rede & Unidades', item:'Site', valor:10000 },
+  { grupo:'Rede & Unidades', item:'WhatsApp', valor:3000 },
+  { grupo:'Rede & Unidades', item:'Aniversário', valor:10000 },
+  { grupo:'Rede & Unidades', item:'V8', valor:35000 },
+  { grupo:'Rede & Unidades', item:'Baby', valor:10000 },
+  { grupo:'Rede & Unidades', item:'Dermo', valor:10000 },
+  { grupo:'Rede & Unidades', item:'RX', valor:3000 },
+  { grupo:'Rede & Unidades', item:'Perfume', valor:2000 },
+  { grupo:'Rede & Unidades', item:'Make', valor:5000 },
+  { grupo:'Rede & Unidades', item:'WhatsApp', valor:1000 },
+  { grupo:'Rede & Unidades', item:'Unidade', valor:2000 },
+  { grupo:'Rede & Unidades', item:'BP Clinic', valor:2000 },
+  { grupo:'V8 & Canais', item:'V8', valor:49100 },
+  { grupo:'V8 & Canais', item:'Tráfego', valor:35000 },
+  { grupo:'V8 & Canais', item:'SMS', valor:7000 },
+  { grupo:'V8 & Canais', item:'Dermato', valor:2100 },
+  { grupo:'V8 & Canais', item:'Influente', valor:5000 },
+  { grupo:'Site', item:'Site', valor:10000 },
+  { grupo:'Site', item:'Prom. Mensais', valor:6000 },
+  { grupo:'Site', item:'Dia do Site', valor:2000 },
+  { grupo:'Site', item:'Primeira10', valor:1000 },
+  { grupo:'Site', item:'Abandono', valor:1000 },
+  { grupo:'WhatsApp', item:'WhatsApp', valor:3000 },
+  { grupo:'WhatsApp', item:'Não Saia de Casa', valor:3000 },
+];
+
+const CAMPANHAS = [
+  { plataforma:'Meta', nome:'Tráfego Pago — Institucional', status:'Ativa', budget:60000, gasto:52400, impressoes:1850000, cliques:41200, conversoes:1380 },
+  { plataforma:'Google', nome:'Google Ads — Busca Genéricos', status:'Ativa', budget:35000, gasto:33100, impressoes:620000, cliques:18900, conversoes:940 },
+  { plataforma:'Meta', nome:'Redes Sociais — Aniversário BP', status:'Ativa', budget:10000, gasto:9450, impressoes:980000, cliques:22100, conversoes:610 },
+  { plataforma:'Google', nome:'Shopping — Dermocosméticos', status:'Pausada', budget:12000, gasto:6800, impressoes:210000, cliques:6100, conversoes:190 },
+  { plataforma:'Meta', nome:'WhatsApp — Reativação de Base', status:'Ativa', budget:3000, gasto:2870, impressoes:410000, cliques:9800, conversoes:340 },
+  { plataforma:'Google', nome:'Performance Max — Site', status:'Ativa', budget:10000, gasto:9600, impressoes:540000, cliques:14200, conversoes:410 },
+];
+
+const NEWS = [
+  { tag:'Comportamento', text:'Consumo de saúde digital continua em alta no varejo farmacêutico — apps de entrega ganham espaço frente ao balcão tradicional.' },
+  { tag:'Concorrência', text:'Redes concorrentes têm intensificado programas de fidelidade com cashback, pressionando o ticket médio do setor.' },
+  { tag:'Sazonalidade', text:'Agosto traz Dia dos Pais e início do outono/inverno — categorias de gripe e imunidade tendem a acelerar.' },
+  { tag:'Mídia', text:'Custo de mídia paga (CPM) no Meta segue em alta no Brasil — reforça a importância de acompanhar ROAS por canal.' },
+];
+
+const ALERTAS = [
+  { titulo:'Fadiga de Criativo — Meta', texto:'Criativo "Aniversário BP — Carrossel 1" teve CTR caindo de 3,1% para 1,8% em 12 dias. Recomenda-se substituição do criativo.' },
+  { titulo:'CPA acima da média — Google', texto:'Anúncio "Genéricos — Busca 2" está com CPA 42% acima da média da conta. Revisar palavras-chave negativas e páginas de destino.' },
+];
+const BUDGET_SUG = [
+  { texto:'Realocar parte da verba de Tráfego Pago para Rede/WhatsApp — esses canais sustentam ROAS mais alto que a média da conta.' },
+  { texto:'Call Center perdeu mais da metade do faturamento em julho vs junho — investigar causa operacional antes de investir mais mídia no canal.' },
+];
+const MSG_SUG = [
+  { texto:'Testar mensagens com foco em conveniência e entrega rápida para reverter a queda do iFood, dado o aumento de CPA no canal.' },
+  { texto:'Ampliar prova social e cupom de primeira compra no site — conversão ainda baixa apesar do tráfego alto em meses de pico.' },
+];
+
+// ---- ESTADO ----
+const STORE_KEY = 'bp_dash_comments_v1';
+function loadComments(){
+  try { const s = localStorage.getItem(STORE_KEY); if (s) return JSON.parse(s); } catch(e){}
+  return [
+    { id:1, date:'15/07/2026', tag:'iFood', text:'Queda de faturamento do iFood em julho preocupa — CPA subiu e o app mudou o algoritmo de destaque. Vou revisar o mix de cupons.' },
+    { id:2, date:'08/07/2026', tag:'Site', text:'Conversão do site ainda baixa (1,8%). Testar checkout simplificado antes da campanha de aniversário.' },
+  ];
+}
+function saveComments(c){ try { localStorage.setItem(STORE_KEY, JSON.stringify(c)); } catch(e){} }
+
+const state = {
+  tab: 'home',
+  monthIdx: 6,
+  chFilter: 'todos',
+  budgetDir: 'desc',
+  campPlat: 'todos',
+  campSort: 'gasto',
+  comments: loadComments(),
+  newComment: '',
+  newCommentTag: 'Geral',
+  chat: [ { role:'assistant', text:'Pergunte sobre tendências do varejo farma, concorrência ou benchmarks de mídia paga.' } ],
+  chatInput: '',
+  chatLoading: false,
+};
+
+// ---- HELPERS ----
+function brl(v,d){ d=d||0; if(v==null) return '—'; return 'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d}); }
+function pct(v,d){ d=d==null?1:d; if(v==null) return '—'; return (v*100).toFixed(d).replace('.',',')+'%'; }
+function spct(v,d){ if(v==null) return '—'; return (v>=0?'+':'')+pct(v,d); }
+function num(v){ if(v==null) return '—'; return Math.round(v).toLocaleString('pt-BR'); }
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+// converte objeto de estilo em string CSS inline
+function st(o){ return Object.keys(o).map(k=>{
+  const prop = k.replace(/[A-Z]/g,m=>'-'+m.toLowerCase());
+  let val = o[k];
+  if (typeof val==='number' && !['zIndex','opacity','flex','fontWeight','order','flexGrow','flexShrink'].includes(k)) val = val+'px';
+  return prop+':'+val;
+}).join(';'); }
+
+// ============================================================
+//  CÁLCULO DOS VALORES (porte fiel de renderVals())
+// ============================================================
+function computeVals(){
+  const { tab, monthIdx, chFilter, budgetDir, campPlat, campSort, comments, chat, chatLoading } = state;
+  const D = DATA;
+  const mi = monthIdx, pmi = mi-1;
+
+  const fatAt = i => (D.loja.fat[i]||0)+(D.site.fat[i]||0)+(D.callcenter.fat[i]||0)+(D.ifood.fat[i]||0);
+  const notasAt = i => (D.loja.notas[i]||0)+(D.site.notas[i]||0)+(D.callcenter.notas[i]||0)+(D.ifood.notas[i]||0);
+
+  const mkChannel = (id,nome,cor,key) => {
+    const fat = D[key].fat[mi], cresc = D[key].crescMes[mi];
+    return { id, nome, cor, fatFmt:brl(fat), crescFmt:spct(cresc),
+      crescPos:cresc!=null&&cresc>=0, crescNeg:cresc!=null&&cresc<0, crescNA:cresc==null,
+      notasFmt:num(D[key].notas[mi]), ticketFmt:brl(D[key].ticket[mi],2),
+      cardStyle:st({background:'#fff',border:'1px solid #e8eaed',borderLeft:'4px solid '+cor,borderRadius:13,padding:15,boxShadow:'0 1px 3px rgba(0,0,0,.06)'}) };
+  };
+  const channelsAll = [
+    mkChannel('loja','Loja (Rede Física)','#37d899','loja'),
+    mkChannel('site','Site','#3b82f6','site'),
+    mkChannel('callcenter','Call Center','#8b5cf6','callcenter'),
+    mkChannel('ifood','iFood','#f97316','ifood'),
+  ];
+  const channels = chFilter==='todos' ? channelsAll : channelsAll.filter(c=>c.id===chFilter);
+
+  const chipDefs = [ {id:'todos',label:'Todos os Canais'},{id:'loja',label:'Loja'},{id:'site',label:'Site'},{id:'callcenter',label:'Call Center'},{id:'ifood',label:'iFood'} ];
+  const chChips = chipDefs.map(c=>{ const active=chFilter===c.id; return { id:c.id, label:c.label,
+    style:st({padding:'6px 14px',borderRadius:99,cursor:'pointer',whiteSpace:'nowrap',fontWeight:active?700:600,fontSize:12,
+      border:'1.5px solid '+(active?'#37d899':'#e8eaed'),background:active?'#f0fdf4':'#fff',color:active?'#065f46':'#64748b'}) }; });
+
+  const monthOptions = MESES.map((m,i)=>({ idx:i, label: i===6 ? (m+' (até 22/07)') : m }));
+
+  const totalFat = fatAt(mi);
+  const totalFatPrev = mi>0 ? fatAt(pmi) : null;
+  const totalGrowth = totalFatPrev ? (totalFat-totalFatPrev)/totalFatPrev : null;
+  const totalNotas = notasAt(mi);
+  const avgTicket = totalNotas ? totalFat/totalNotas : null;
+
+  const maxFat = Math.max.apply(null, MESES.map((_,i)=>fatAt(i)));
+  const trendBars = MESES.map((m,i)=>{ const h=Math.max(6,Math.round((fatAt(i)/maxFat)*120));
+    return { label:m.slice(0,3), valueFmt:brl(fatAt(i)),
+      barStyle:st({width:'100%',maxWidth:38,margin:'0 auto',borderRadius:'6px 6px 0 0',height:h,background:i===mi?'#37d899':'#c7ecda'}) }; });
+
+  const crescByChannel = [
+    {nome:'Loja',v:D.loja.crescMes[mi]},{nome:'Site',v:D.site.crescMes[mi]},
+    {nome:'Call Center',v:D.callcenter.crescMes[mi]},{nome:'iFood',v:D.ifood.crescMes[mi]},
+  ].filter(c=>c.v!=null);
+  let insightText = 'Sem comparativo suficiente para o mês selecionado.';
+  if (crescByChannel.length){
+    const worst = crescByChannel.reduce((a,b)=>b.v<a.v?b:a);
+    const best = crescByChannel.reduce((a,b)=>b.v>a.v?b:a);
+    insightText = 'Em '+MESES[mi]+', '+best.nome+' liderou o crescimento ('+spct(best.v)+') enquanto '+worst.nome+' teve a maior queda ('+spct(worst.v)+') vs. o mês anterior.';
+  }
+  const comparativos = crescByChannel.map(c=>({ nome:c.nome, textoFmt:spct(c.v)+' vs mês anterior', pos:c.v>=0, neg:c.v<0 }));
+
+  const grupoColor = {'Tráfego Pago':'#37d899','Rede & Unidades':'#3b82f6','V8 & Canais':'#8b5cf6','Site':'#f59e0b','WhatsApp':'#06b6d4'};
+  const budgetSorted = BUDGET.slice().sort((a,b)=>budgetDir==='desc'?b.valor-a.valor:a.valor-b.valor).map(b=>({
+    item:b.item, grupo:b.grupo, valorFmt:brl(b.valor),
+    tagStyle:st({display:'inline-flex',padding:'3px 9px',borderRadius:99,fontSize:10,fontWeight:700,background:(grupoColor[b.grupo]||'#94a3b8')+'18',color:grupoColor[b.grupo]||'#64748b'}) }));
+  const budgetTotal = BUDGET.reduce((a,b)=>a+b.valor,0);
+  const budgetSortIcon = budgetDir==='desc'?'arrow-down':'arrow-up';
+
+  let camps = CAMPANHAS.filter(c=>campPlat==='todos'||c.plataforma.toLowerCase()===campPlat);
+  camps = camps.map(c=>({ ...c, ctr:c.cliques/c.impressoes, cpa:c.gasto/c.conversoes }));
+  camps.sort((a,b)=>b[campSort]-a[campSort]);
+  camps = camps.map(c=>({
+    nome:c.nome, isMeta:c.plataforma==='Meta', isGoogle:c.plataforma==='Google', isAtiva:c.status==='Ativa', isPausada:c.status==='Pausada',
+    gastoFmt:brl(c.gasto), impressoesFmt:num(c.impressoes), cliquesFmt:num(c.cliques),
+    ctrFmt:pct(c.ctr,2), cpaFmt:brl(c.cpa,2), conversoesFmt:num(c.conversoes),
+    pctBarStyle:st({height:6,borderRadius:99,background:'#37d899',width:Math.min(100,Math.round((c.gasto/c.budget)*100))+'%'}) }));
+  const totalGasto = CAMPANHAS.reduce((a,c)=>a+c.gasto,0);
+  const metaGasto = CAMPANHAS.filter(c=>c.plataforma==='Meta').reduce((a,c)=>a+c.gasto,0);
+  const googleGasto = CAMPANHAS.filter(c=>c.plataforma==='Google').reduce((a,c)=>a+c.gasto,0);
+
+  const gaSessoesFmt = num(D.site.visitas[mi]);
+  const gaUsuarios = D.site.visitas[mi]!=null ? Math.round(D.site.visitas[mi]*0.82) : null;
+  const gaMax = Math.max.apply(null, D.site.visitas.map(v=>v||0));
+  const gaTrend = MESES.map((m,i)=>({ label:m.slice(0,3),
+    barStyle:st({width:'100%',maxWidth:38,margin:'0 auto',borderRadius:'6px 6px 0 0',height:Math.max(4,Math.round(((D.site.visitas[i]||0)/gaMax)*100)),background:i===mi?'#3b82f6':'#c9dcfb'}) }));
+  const trafficSources = [
+    {nome:'Pago',pct:31,cor:'#37d899'},{nome:'Direto',pct:28,cor:'#3b82f6'},{nome:'Orgânico',pct:24,cor:'#8b5cf6'},
+    {nome:'Social',pct:12,cor:'#f97316'},{nome:'Referral',pct:5,cor:'#94a3b8'},
+  ].map(s=>({ nome:s.nome, pctFmt:s.pct+'%', barStyle:st({height:6,borderRadius:99,background:s.cor,width:s.pct+'%'}) }));
+  const devices = [{nome:'Mobile',pct:68,cor:'#37d899'},{nome:'Desktop',pct:27,cor:'#3b82f6'},{nome:'Tablet',pct:5,cor:'#94a3b8'}]
+    .map(d=>({ nome:d.nome, pctFmt:d.pct+'%', barStyle:st({height:6,borderRadius:99,background:d.cor,width:d.pct+'%'}) }));
+  const topPages = [
+    {url:'/promocoes',views:'18.400'},{url:'/farmacia-online',views:'12.100'},{url:'/aniversario-bp',views:'9.800'},
+    {url:'/dermocosmeticos',views:'7.600'},{url:'/localizador-de-lojas',views:'6.200'},
+  ];
+
+  const commentsDisp = comments.map(c=>({ id:c.id, date:c.date, tag:c.tag, text:c.text }));
+  const chatDisp = chat.map(m=>({ text:m.text, isUser:m.role==='user', isAssistant:m.role!=='user' }));
+
+  const awarenessTrend = [54,57,59,61].map((v,i)=>({ label:['T3/25','T4/25','T1/26','T2/26'][i], barStyle:st({width:'100%',maxWidth:34,margin:'0 auto',borderRadius:'5px 5px 0 0',height:Math.round((v/70)*100),background:i===3?'#37d899':'#c7ecda'}) }));
+  const npsTrend = [31,35,38,42].map((v,i)=>({ label:['T3/25','T4/25','T1/26','T2/26'][i], barStyle:st({width:'100%',maxWidth:34,margin:'0 auto',borderRadius:'5px 5px 0 0',height:Math.round((v/50)*100),background:i===3?'#3b82f6':'#c9dcfb'}) }));
+  const sentimento = [{nome:'Promotores',pct:52,cor:'#37d899'},{nome:'Neutros',pct:33,cor:'#94a3b8'},{nome:'Detratores',pct:15,cor:'#ef4444'}]
+    .map(s=>({ nome:s.nome, pctFmt:s.pct+'%', barStyle:st({height:6,borderRadius:99,background:s.cor,width:s.pct+'%'}) }));
+  const competidores = [{nome:'Bom Preço',pct:61,cor:'#37d899'},{nome:'Concorrente A',pct:58,cor:'#94a3b8'},{nome:'Concorrente B',pct:66,cor:'#94a3b8'}]
+    .map(c=>({ nome:c.nome, pctFmt:c.pct+'%', barStyle:st({height:6,borderRadius:99,background:c.cor,width:c.pct+'%'}) }));
+
+  const navDefs = [
+    {id:'home',label:'Home',icon:'home'},{id:'visao',label:'Visão Geral',icon:'layout-dashboard'},
+    {id:'campanhas',label:'Campanhas',icon:'megaphone'},{id:'analytics',label:'Google Analytics',icon:'line-chart'},
+    {id:'indicadores',label:'Indicadores',icon:'lightbulb'},{id:'comentarios',label:'Comentários & Mercado',icon:'message-square'},
+    {id:'brand',label:'Brand Equity',icon:'award'},
+  ];
+  const navItems = navDefs.map(n=>{ const active=tab===n.id; return { id:n.id, label:n.label, icon:n.icon,
+    wrapStyle:st({width:42,height:42,borderRadius:11,display:'flex',alignItems:'center',justifyContent:'center',border:'none',cursor:'pointer',background:active?'#f0fdf4':'transparent',color:active?'#065f46':'#94a3b8'}) }; });
+
+  const tabTitle = {home:'Home',visao:'Visão Geral',campanhas:'Campanhas & Resultados',analytics:'Google Analytics',indicadores:'Indicadores & Recomendações',comentarios:'Comentários & Inteligência de Mercado',brand:'Brand Equity'}[tab];
+  const tabSub = {home:'Fluxo de clientes e impacto das campanhas — mês atual',visao:'Faturamento, canais e evolução mensal',campanhas:'Orçamento de agosto, Meta Ads e Google Ads',analytics:'Tráfego, conversão e comportamento no site',indicadores:'Comparativos, alertas e sugestões geradas com apoio de IA',comentarios:'Seu parecer, tendências de mercado e assistente de IA',brand:'Percepção e reputação de marca'}[tab];
+
+  // ── HOME ──
+  const cur = CURIDX, win = [cur-2,cur-1,cur];
+  const parcial = i => i===cur ? ' *' : '';
+  const maxWin = Math.max.apply(null, win.map(i=>fatAt(i)));
+  const motionBars = win.map((i,k)=>{ const mom = k>0 ? (fatAt(i)-fatAt(win[k-1]))/fatAt(win[k-1]) : null;
+    return { label:MESES[i]+parcial(i), valueFmt:brl(fatAt(i)), momFmt:mom==null?'':spct(mom), momPos:mom!=null&&mom>=0, momNeg:mom!=null&&mom<0,
+      barStyle:st({width:'70%',maxWidth:120,borderRadius:'8px 8px 0 0',height:Math.round((fatAt(i)/maxWin)*160),transformOrigin:'bottom',
+        background:i===cur?'linear-gradient(180deg,#5eead1,#37d899,#22c789)':'linear-gradient(180deg,#475569,#334155,#475569)',
+        backgroundSize:'100% 300%',animation:'omGrow .7s ease-out, omFlow 3s linear infinite'}) }; });
+
+  const notaCur = k => D[k].notas[cur]||0;
+  const fluxoRaw = [
+    {nome:'Loja',v:notaCur('loja'),cor:'#37d899'},{nome:'iFood',v:notaCur('ifood'),cor:'#f97316'},
+    {nome:'Call Center',v:notaCur('callcenter'),cor:'#8b5cf6'},{nome:'Site',v:notaCur('site'),cor:'#3b82f6'},
+  ];
+  const fluxoTot = fluxoRaw.reduce((a,b)=>a+b.v,0);
+  const fluxoMax = Math.max.apply(null, fluxoRaw.map(f=>f.v));
+  const fluxo = fluxoRaw.map(f=>({ nome:f.nome, valueFmt:num(f.v), shareFmt:pct(fluxoTot?f.v/fluxoTot:0),
+    barStyle:st({height:14,borderRadius:99,background:f.cor,width:Math.max(2,Math.round((f.v/fluxoMax)*100))+'%',transformOrigin:'left',animation:'omGrowX .8s ease-out'}) }));
+
+  const digRaw = [
+    {nome:'iFood',k:'ifood',cor:'#f97316'},{nome:'Call Center',k:'callcenter',cor:'#8b5cf6'},{nome:'Site',k:'site',cor:'#3b82f6'},
+  ].map(d=>({ ...d, v:notaCur(d.k), prev:D[d.k].notas[cur-1]||0 }));
+  const digMax = Math.max.apply(null, digRaw.map(d=>d.v));
+  const fluxoDigital = digRaw.map(d=>{ const mom=d.prev?(d.v-d.prev)/d.prev:null;
+    return { nome:d.nome, valueFmt:num(d.v), momFmt:mom==null?'—':spct(mom),
+      barStyle:st({height:14,borderRadius:99,background:d.cor,width:Math.max(2,Math.round((d.v/digMax)*100))+'%',transformOrigin:'left',animation:'omGrowX .8s ease-out'}) }; });
+
+  const organico = notaCur('loja');
+  const digital = notaCur('site')+notaCur('callcenter')+notaCur('ifood');
+  const dvoTot = organico+digital||1;
+  const orgPrev = D.loja.notas[cur-1]||0;
+  const digPrev = (D.site.notas[cur-1]||0)+(D.callcenter.notas[cur-1]||0)+(D.ifood.notas[cur-1]||0);
+  const organicoShare = organico/dvoTot, digitalShare = digital/dvoTot;
+  const clientesMes = fluxoTot;
+  const clientesMoM = orgPrev+digPrev ? (dvoTot-(orgPrev+digPrev))/(orgPrev+digPrev) : null;
+
+  const yoyMax = Math.max.apply(null, win.flatMap(i=>[D.loja.fat2025[i],D.loja.fat[i]]));
+  const yoyBars = win.map(i=>{ const v25=D.loja.fat2025[i], v26=D.loja.fat[i], delta=v25?(v26-v25)/v25:null;
+    return { label:MESES[i].slice(0,3)+parcial(i), v25Fmt:brl(v25), v26Fmt:brl(v26), deltaFmt:spct(delta), pos:delta>=0, neg:delta<0,
+      bar25Style:st({width:22,borderRadius:'6px 6px 0 0',height:Math.round((v25/yoyMax)*130),background:'#cbd5e1'}),
+      bar26Style:st({width:22,borderRadius:'6px 6px 0 0',height:Math.round((v26/yoyMax)*130),background:'#37d899',transformOrigin:'bottom',animation:'omGrow .7s ease-out'}) }; });
+  const homeYoY = D.loja.fat2025[cur] ? (D.loja.fat[cur]-D.loja.fat2025[cur])/D.loja.fat2025[cur] : null;
+
+  return {
+    navItems, tabTitle, tabSub, atualizacao:ATUALIZACAO,
+    isHome:tab==='home', isVisao:tab==='visao', isCampanhas:tab==='campanhas', isAnalytics:tab==='analytics',
+    isIndicadores:tab==='indicadores', isComentarios:tab==='comentarios', isBrand:tab==='brand',
+    janelaLabel: MESES[win[0]].slice(0,3)+' – '+MESES[win[2]].slice(0,3)+'/2026',
+    motionBars, fluxo, fluxoDigital, yoyBars,
+    clientesMesFmt:num(clientesMes), clientesMoMFmt:spct(clientesMoM),
+    homeFatFmt:brl(fatAt(cur)), homeFatMoMFmt:spct((fatAt(cur)-fatAt(cur-1))/fatAt(cur-1)), homeYoYFmt:spct(homeYoY),
+    organicoFmt:num(organico), organicoShareFmt:pct(organicoShare), organicoMoMFmt:spct(orgPrev?(organico-orgPrev)/orgPrev:null),
+    digitalFmt:num(digital), digitalShareFmt:pct(digitalShare), digitalMoMFmt:spct(digPrev?(digital-digPrev)/digPrev:null),
+    splitOrganicoStyle:st({width:(organicoShare*100)+'%',background:'#37d899',transformOrigin:'left',animation:'omGrowX .8s ease-out'}),
+    splitDigitalStyle:st({width:(digitalShare*100)+'%',background:'#3b82f6',transformOrigin:'left',animation:'omGrowX .8s ease-out'}),
+    monthIdx, monthOptions,
+    totalFatFmt:brl(totalFat), totalGrowthFmt:spct(totalGrowth), totalNotasFmt:num(totalNotas),
+    avgTicketFmt:brl(avgTicket,2), visitasSiteFmt:num(D.site.visitas[mi]), gaConversaoFmt:pct(D.site.conversao[mi]),
+    insightText, chChips, channels, trendBars,
+    budgetSorted, budgetTotalFmt:num(budgetTotal), budgetSortIcon,
+    campPlat, campSort, camps, totalGastoFmt:brl(totalGasto), metaGastoFmt:brl(metaGasto), googleGastoFmt:brl(googleGasto),
+    gaSessoesFmt, gaUsuariosFmt:num(gaUsuarios), gaBounceFmt:pct(0.46), gaTrend, trafficSources, devices, topPages,
+    comparativos, alertas:ALERTAS, budgetSugestoes:BUDGET_SUG, mensagemSugestoes:MSG_SUG,
+    newComment:state.newComment, newCommentTag:state.newCommentTag, commentsDisp, news:NEWS,
+    chatDisp, chatInput:state.chatInput, chatLoading,
+    awarenessFmt:'61%', awarenessTrend, npsFmt:'42', npsTrend, sentimento, competidores,
+  };
+}
+
+// ============================================================
+//  RENDERIZAÇÃO (HTML por aba)
+// ============================================================
+function homeHTML(v){
+  return `<div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px">
+      ${card('Clientes no Mês Atual', v.clientesMesFmt, v.clientesMoMFmt+' vs mês anterior')}
+      ${card('Faturamento Mês Atual', v.homeFatFmt, v.homeFatMoMFmt+' vs mês anterior')}
+      ${card('Canais Digitais (clientes)', v.digitalFmt, v.digitalShareFmt+' do fluxo total')}
+      ${card('YoY Loja (2026 vs 2025)', v.homeYoYFmt, 'Mesmo mês do ano anterior')}
+    </div>
+    <div style="background:#0f172a;border-radius:16px;padding:22px 24px;margin-bottom:20px;position:relative;overflow:hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+        <div>
+          <div style="font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:#37d899">Movimento — Últimos 3 Meses</div>
+          <div style="font-weight:500;font-size:11px;color:#94a3b8;margin-top:3px">Faturamento total consolidado (todos os canais)</div>
+        </div>
+        <span style="background:rgba(55,216,153,.16);color:#37d899;padding:5px 11px;border-radius:99px;font-weight:700;font-size:10px">${esc(v.janelaLabel)}</span>
+      </div>
+      <div style="display:flex;align-items:flex-end;gap:28px;height:200px">
+        ${v.motionBars.map(bar=>`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:10px;height:100%;justify-content:flex-end">
+          <div style="font-weight:800;font-size:15px;color:#fff">${esc(bar.valueFmt)}</div>
+          <div style="${bar.barStyle}"></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+            <div style="font-weight:700;font-size:12px;color:#e2e8f0">${esc(bar.label)}</div>
+            ${bar.momPos?`<span style="font-weight:700;font-size:10px;color:#37d899">${esc(bar.momFmt)}</span>`:''}
+            ${bar.momNeg?`<span style="font-weight:700;font-size:10px;color:#f87171">${esc(bar.momFmt)}</span>`:''}
+          </div>
+        </div>`).join('')}
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+      <div style="${panel()}">
+        <div style="font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:4px">Fluxo de Clientes por Plataforma</div>
+        <div style="font-weight:500;font-size:11px;color:#94a3b8;margin-bottom:14px">Notas emitidas no mês atual</div>
+        ${v.fluxo.map(f=>bar2(f.nome, f.valueFmt+' · '+f.shareFmt, f.barStyle)).join('')}
+      </div>
+      <div style="${panel()}">
+        <div style="font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:4px">Canais Digitais em Detalhe</div>
+        <div style="font-weight:500;font-size:11px;color:#94a3b8;margin-bottom:14px">Impacto das plataformas digitais (escala própria)</div>
+        ${v.fluxoDigital.map(f=>bar2(f.nome, f.valueFmt+' · '+f.momFmt, f.barStyle)).join('')}
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+      <div style="${panel()}">
+        <div style="font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:14px">Orgânico (Loja) vs Digital (Plataformas)</div>
+        <div style="display:flex;gap:16px">
+          <div style="flex:1;text-align:center;background:#f0fdf4;border:1px solid #86efac;border-radius:11px;padding:16px">
+            <div style="font-weight:700;font-size:10px;text-transform:uppercase;color:#065f46;margin-bottom:6px">Loja / Orgânico</div>
+            <div style="font-weight:800;font-size:26px;color:#0f172a">${esc(v.organicoShareFmt)}</div>
+            <div style="font-weight:600;font-size:11px;color:#64748b;margin-top:4px">${esc(v.organicoFmt)} clientes</div>
+            <div style="font-weight:700;font-size:11px;color:#059669;margin-top:6px">${esc(v.organicoMoMFmt)}</div>
+          </div>
+          <div style="flex:1;text-align:center;background:#eff6ff;border:1px solid #bfdbfe;border-radius:11px;padding:16px">
+            <div style="font-weight:700;font-size:10px;text-transform:uppercase;color:#1e40af;margin-bottom:6px">Digital / Plataformas</div>
+            <div style="font-weight:800;font-size:26px;color:#0f172a">${esc(v.digitalShareFmt)}</div>
+            <div style="font-weight:600;font-size:11px;color:#64748b;margin-top:4px">${esc(v.digitalFmt)} clientes</div>
+            <div style="font-weight:700;font-size:11px;color:#2563eb;margin-top:6px">${esc(v.digitalMoMFmt)}</div>
+          </div>
+        </div>
+        <div style="display:flex;height:12px;border-radius:99px;overflow:hidden;margin-top:16px">
+          <div style="${v.splitOrganicoStyle}"></div><div style="${v.splitDigitalStyle}"></div>
+        </div>
+      </div>
+      <div style="${panel()}">
+        <div style="font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:14px">Comparativo Ano a Ano — Loja (2025 vs 2026)</div>
+        <div style="display:flex;align-items:flex-end;gap:20px;height:150px">
+          ${v.yoyBars.map(y=>`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end">
+            <div style="display:flex;align-items:flex-end;gap:5px;height:100%;width:100%;justify-content:center">
+              <div style="${y.bar25Style}" title="2025: ${esc(y.v25Fmt)}"></div>
+              <div style="${y.bar26Style}" title="2026: ${esc(y.v26Fmt)}"></div>
+            </div>
+            <div style="font-weight:700;font-size:11px;color:#334155">${esc(y.label)}</div>
+            ${y.pos?`<span style="font-weight:700;font-size:10px;color:#059669">${esc(y.deltaFmt)}</span>`:''}
+            ${y.neg?`<span style="font-weight:700;font-size:10px;color:#ef4444">${esc(y.deltaFmt)}</span>`:''}
+          </div>`).join('')}
+        </div>
+        <div style="display:flex;gap:16px;justify-content:center;margin-top:10px">
+          <span style="display:inline-flex;align-items:center;gap:5px;font-weight:600;font-size:11px;color:#64748b"><span style="width:10px;height:10px;border-radius:3px;background:#cbd5e1"></span> 2025</span>
+          <span style="display:inline-flex;align-items:center;gap:5px;font-weight:600;font-size:11px;color:#64748b"><span style="width:10px;height:10px;border-radius:3px;background:#37d899"></span> 2026</span>
+        </div>
+      </div>
+    </div>
+    <div style="font-weight:500;font-size:10px;line-height:1.4;color:#94a3b8">Fonte: planilha de Fluxo de Faturamento — Marketing. Mês atual = Julho/2026 (dados até 22/07; Call Center até 15/07). Comparativos parciais sinalizados com *.</div>
+  </div>`;
+}
+
+function visaoHTML(v){
+  return `<div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px">
+      ${card('Faturamento do Mês', v.totalFatFmt, v.totalGrowthFmt+' vs mês anterior')}
+      ${card('Notas Vendidas', v.totalNotasFmt, 'Todos os canais')}
+      ${card('Ticket Médio Consolidado', v.avgTicketFmt, 'Faturamento ÷ notas')}
+      ${card('Visitas ao Site', v.visitasSiteFmt, 'Conversão '+v.gaConversaoFmt)}
+    </div>
+    <div style="background:linear-gradient(135deg,#f0fdf4 0%,#f5f3ff 100%);border:1px solid #86efac;border-radius:13px;padding:14px 16px;margin-bottom:20px;display:flex;gap:12px;align-items:flex-start">
+      <div style="width:24px;height:24px;background:linear-gradient(135deg,#37d899,#3b82f6);border-radius:7px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:10px;color:#fff;flex-shrink:0">AI</div>
+      <div style="font-weight:500;font-size:13px;line-height:1.5;color:#1a2040">${esc(v.insightText)}</div>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:14px;overflow-x:auto">
+      ${v.chChips.map(chip=>`<button data-act="ch" data-val="${esc(chip.id)}" style="${chip.style}">${esc(chip.label)}</button>`).join('')}
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin-bottom:24px">
+      ${v.channels.map(ch=>`<div style="${ch.cardStyle}">
+        <div style="font-weight:700;font-size:13px;color:#0f172a;margin-bottom:10px">${esc(ch.nome)}</div>
+        <div style="font-weight:800;font-size:19px;color:#0f172a;margin-bottom:7px">${esc(ch.fatFmt)}</div>
+        ${ch.crescPos?`<span style="display:inline-flex;padding:2px 8px;border-radius:99px;font-weight:700;font-size:10px;background:#ecfdf5;color:#059669">${esc(ch.crescFmt)}</span>`:''}
+        ${ch.crescNeg?`<span style="display:inline-flex;padding:2px 8px;border-radius:99px;font-weight:700;font-size:10px;background:#fef2f2;color:#ef4444">${esc(ch.crescFmt)}</span>`:''}
+        ${ch.crescNA?`<span style="display:inline-flex;padding:2px 8px;border-radius:99px;font-weight:700;font-size:10px;background:#f1f5f9;color:#64748b">Sem comparativo</span>`:''}
+        <div style="display:flex;gap:16px;margin-top:12px">
+          <div><div style="font-weight:600;font-size:9px;text-transform:uppercase;letter-spacing:.4px;color:#94a3b8;margin-bottom:3px">Notas</div><div style="font-weight:700;font-size:13px;color:#334155">${esc(ch.notasFmt)}</div></div>
+          <div><div style="font-weight:600;font-size:9px;text-transform:uppercase;letter-spacing:.4px;color:#94a3b8;margin-bottom:3px">Ticket Médio</div><div style="font-weight:700;font-size:13px;color:#334155">${esc(ch.ticketFmt)}</div></div>
+        </div>
+      </div>`).join('')}
+    </div>
+    <div style="${panel()}">
+      <div style="font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:14px">Faturamento Total — Jan a Jul 2026</div>
+      <div style="display:flex;align-items:flex-end;gap:10px;height:130px">
+        ${v.trendBars.map(bar=>`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end">
+          <div style="${bar.barStyle}" title="${esc(bar.valueFmt)}"></div>
+          <div style="font-weight:600;font-size:10px;color:#94a3b8">${esc(bar.label)}</div>
+        </div>`).join('')}
+      </div>
+    </div>
+    <div style="font-weight:500;font-size:10px;line-height:1.4;color:#94a3b8;margin-top:10px">Fonte: planilha de Fluxo de Faturamento — Marketing. * Julho/2026 considera dados até 22/07 (até 15/07 para Call Center).</div>
+  </div>`;
+}
+
+function campanhasHTML(v){
+  return `<div>
+    <div style="${panel()};margin-bottom:22px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <div style="font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8">Orçamento de Agosto — R$ ${esc(v.budgetTotalFmt)}</div>
+        <button data-act="budgetDir" style="display:inline-flex;align-items:center;gap:5px;padding:6px 11px;border-radius:8px;border:1.5px solid #e8eaed;background:#fff;color:#64748b;font-weight:600;font-size:11px;cursor:pointer">
+          Valor <i data-lucide="${esc(v.budgetSortIcon)}" style="width:12px;height:12px"></i>
+        </button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr auto auto;gap:8px 18px;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:#94a3b8;padding:0 4px 8px;border-bottom:1px solid #e8eaed">
+        <div>Linha</div><div>Grupo</div><div style="text-align:right">Valor</div>
+      </div>
+      ${v.budgetSorted.map(b=>`<div style="display:grid;grid-template-columns:1fr auto auto;gap:8px 18px;align-items:center;padding:9px 4px;border-bottom:1px solid #f1f5f9">
+        <div style="font-weight:600;font-size:13px;color:#0f172a">${esc(b.item)}</div>
+        <div><span style="${b.tagStyle}">${esc(b.grupo)}</span></div>
+        <div style="text-align:right;font-weight:700;font-size:13px;color:#0f172a">${esc(b.valorFmt)}</div>
+      </div>`).join('')}
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div style="font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8">Resultados de Mídia Paga <span style="background:#fffbeb;color:#d97706;padding:2px 8px;border-radius:99px;font-weight:700;font-size:9px;margin-left:6px">DADOS ILUSTRATIVOS</span></div>
+      <div style="display:flex;gap:8px">
+        <select data-act="campPlat" style="background:#f8fafc;border:1.5px solid #e8eaed;border-radius:8px;padding:6px 10px;font-weight:600;font-size:11px;color:#0f172a;cursor:pointer">
+          ${opt('todos','Todas as Plataformas',v.campPlat)}${opt('meta','Meta',v.campPlat)}${opt('google','Google',v.campPlat)}
+        </select>
+        <select data-act="campSort" style="background:#f8fafc;border:1.5px solid #e8eaed;border-radius:8px;padding:6px 10px;font-weight:600;font-size:11px;color:#0f172a;cursor:pointer">
+          ${opt('gasto','Ordenar: Investimento',v.campSort)}${opt('conversoes','Ordenar: Conversões',v.campSort)}${opt('ctr','Ordenar: CTR',v.campSort)}${opt('cpa','Ordenar: CPA',v.campSort)}
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;gap:14px;margin-bottom:18px">
+      ${miniStat('Investimento Total', v.totalGastoFmt, '#94a3b8')}
+      ${miniStat('Meta Ads', v.metaGastoFmt, '#3b82f6')}
+      ${miniStat('Google Ads', v.googleGastoFmt, '#d97706')}
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      ${v.camps.map(c=>`<div style="${panel()}">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          ${c.isMeta?`<span style="padding:2px 9px;border-radius:99px;font-weight:700;font-size:10px;background:#eff6ff;color:#3b82f6">Meta</span>`:''}
+          ${c.isGoogle?`<span style="padding:2px 9px;border-radius:99px;font-weight:700;font-size:10px;background:#fffbeb;color:#d97706">Google</span>`:''}
+          ${c.isAtiva?`<span style="padding:2px 9px;border-radius:99px;font-weight:700;font-size:10px;background:#ecfdf5;color:#059669">Ativa</span>`:''}
+          ${c.isPausada?`<span style="padding:2px 9px;border-radius:99px;font-weight:700;font-size:10px;background:#fffbeb;color:#d97706">Pausada</span>`:''}
+          <span style="font-weight:700;font-size:13px;color:#0f172a">${esc(c.nome)}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px">
+          ${kv('Investido',c.gastoFmt)}${kv('Impressões',c.impressoesFmt)}${kv('Cliques',c.cliquesFmt)}${kv('CTR',c.ctrFmt)}${kv('CPA',c.cpaFmt)}${kv('Conversões',c.conversoesFmt)}
+        </div>
+        <div style="margin-top:10px;background:#f1f5f9;border-radius:99px;height:6px;overflow:hidden"><div style="${c.pctBarStyle}"></div></div>
+      </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+function analyticsHTML(v){
+  return `<div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px">
+      ${cardSmall('Sessões', v.gaSessoesFmt)}
+      ${cardSmall('Usuários <span style="color:#c2410c;font-weight:600">(estim.)</span>', v.gaUsuariosFmt)}
+      ${cardSmall('Conversão', v.gaConversaoFmt)}
+      ${cardSmall('Rejeição <span style="color:#c2410c;font-weight:600">(estim.)</span>', v.gaBounceFmt)}
+    </div>
+    <div style="${panel()};margin-bottom:20px">
+      <div style="font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:14px">Sessões — Jan a Jul 2026</div>
+      <div style="display:flex;align-items:flex-end;gap:10px;height:120px">
+        ${v.gaTrend.map(bar=>`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end">
+          <div style="${bar.barStyle}"></div><div style="font-weight:600;font-size:10px;color:#94a3b8">${esc(bar.label)}</div>
+        </div>`).join('')}
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div style="${panel()}">
+        <div style="font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:6px">Origem do Tráfego <span style="background:#fffbeb;color:#d97706;padding:1px 7px;border-radius:99px;font-weight:700;font-size:9px;margin-left:4px">ILUSTRATIVO</span></div>
+        ${v.trafficSources.map(s=>miniBar(s.nome, s.pctFmt, s.barStyle)).join('')}
+      </div>
+      <div style="${panel()}">
+        <div style="font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:6px">Dispositivo <span style="background:#fffbeb;color:#d97706;padding:1px 7px;border-radius:99px;font-weight:700;font-size:9px;margin-left:4px">ILUSTRATIVO</span></div>
+        ${v.devices.map(d=>miniBar(d.nome, d.pctFmt, d.barStyle)).join('')}
+        <div style="font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin:18px 0 6px">Páginas Mais Vistas</div>
+        ${v.topPages.map(p=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f1f5f9;font-size:12px"><span style="color:#334155;font-weight:500">${esc(p.url)}</span><span style="color:#0f172a;font-weight:700">${esc(p.views)}</span></div>`).join('')}
+      </div>
+    </div>
+    <div style="font-weight:500;font-size:10px;line-height:1.4;color:#94a3b8;margin-top:10px">Sessões e Conversão vêm da planilha (Visitas ao Site / Conversão). Demais métricas são ilustrativas até a conexão com o Google Analytics real.</div>
+  </div>`;
+}
+
+function indicadoresHTML(v){
+  return `<div>
+    <div style="font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:10px">Comparativos do Mês</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:22px">
+      ${v.comparativos.map(cp=>`<div style="background:#fff;border:1px solid #e8eaed;border-left:4px solid #3b82f6;border-radius:11px;padding:13px 15px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
+        <div style="font-weight:700;font-size:13px;color:#0f172a;margin-bottom:4px">${esc(cp.nome)}</div>
+        <div style="font-weight:600;font-size:12px;color:${cp.pos?'#059669':'#ef4444'}">${esc(cp.textoFmt)}</div>
+      </div>`).join('')}
+    </div>
+    <div style="font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:10px">Alertas de Criativo <span style="background:linear-gradient(135deg,#f0fdf4,#f5f3ff);padding:2px 8px;border-radius:99px;font-weight:700;font-size:9px;margin-left:4px;color:#4f63e7">FEITO COM CLAUDE</span></div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:22px">
+      ${v.alertas.map(al=>`<div style="background:#fffbeb;border:1px solid #fcd34d;border-left:4px solid #f59e0b;border-radius:11px;padding:13px 15px">
+        <div style="font-weight:700;font-size:13px;color:#92400e;margin-bottom:4px">${esc(al.titulo)}</div>
+        <div style="font-weight:500;font-size:12px;line-height:1.5;color:#78350f">${esc(al.texto)}</div>
+      </div>`).join('')}
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div>
+        <div style="font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:10px">Realocação de Orçamento</div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          ${v.budgetSugestoes.map(s=>sugCard(s.texto,'#8b5cf6')).join('')}
+        </div>
+      </div>
+      <div>
+        <div style="font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:10px">Comunicação & Criativos</div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          ${v.mensagemSugestoes.map(s=>sugCard(s.texto,'#ec4899')).join('')}
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function comentariosHTML(v){
+  return `<div style="display:grid;grid-template-columns:1.1fr .9fr;gap:20px">
+    <div>
+      <div style="font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:10px">Meu Parecer</div>
+      <div style="${panel()};margin-bottom:16px">
+        <textarea data-act="newComment" placeholder="Registre sua avaliação sobre uma campanha, canal ou resultado..." style="width:100%;min-height:80px;background:#f8fafc;border:1.5px solid #e8eaed;border-radius:9px;padding:10px 12px;font-family:Inter;font-size:13px;color:#0f172a;resize:vertical">${esc(v.newComment)}</textarea>
+        <div style="display:flex;gap:8px;margin-top:10px;align-items:center">
+          <select data-act="newCommentTag" style="background:#f8fafc;border:1.5px solid #e8eaed;border-radius:8px;padding:8px 10px;font-weight:600;font-size:12px;color:#0f172a;cursor:pointer">
+            ${['Geral','Loja','Site','Call Center','iFood','Meta/Google'].map(t=>opt(t,t,v.newCommentTag)).join('')}
+          </select>
+          <button data-act="addComment" style="margin-left:auto;display:inline-flex;align-items:center;gap:6px;background:#37d899;color:#fff;border:none;border-radius:9px;padding:8px 16px;font-weight:600;font-size:13px;cursor:pointer;box-shadow:0 2px 8px rgba(55,216,153,.28)">
+            <i data-lucide="plus" style="width:13px;height:13px"></i> Salvar Parecer
+          </button>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        ${v.commentsDisp.map(c=>`<div style="background:#fff;border:1px solid #e8eaed;border-radius:11px;padding:13px 15px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+            <span style="padding:2px 8px;border-radius:99px;font-weight:700;font-size:9px;background:#f0fdf4;color:#065f46">${esc(c.tag)}</span>
+            <span style="font-weight:600;font-size:10px;color:#94a3b8">${esc(c.date)}</span>
+            <button data-act="rmComment" data-val="${esc(c.id)}" style="margin-left:auto;background:none;border:none;color:#cbd5e1;cursor:pointer;display:flex"><i data-lucide="x" style="width:14px;height:14px"></i></button>
+          </div>
+          <div style="font-weight:500;font-size:13px;line-height:1.5;color:#0f172a">${esc(c.text)}</div>
+        </div>`).join('')}
+      </div>
+    </div>
+    <div>
+      <div style="font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:10px">Inteligência de Mercado</div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px">
+        ${v.news.map(n=>`<div style="background:#fff;border:1px solid #e8eaed;border-radius:11px;padding:12px 14px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
+          <span style="display:inline-flex;padding:2px 8px;border-radius:99px;font-weight:700;font-size:9px;background:#eff6ff;color:#3b82f6;margin-bottom:6px">${esc(n.tag)}</span>
+          <div style="font-weight:500;font-size:12px;line-height:1.5;color:#334155">${esc(n.text)}</div>
+        </div>`).join('')}
+      </div>
+      <div style="font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:10px">Assistente de Mercado <span style="background:linear-gradient(135deg,#f0fdf4,#f5f3ff);padding:2px 8px;border-radius:99px;font-weight:700;font-size:9px;margin-left:4px;color:#4f63e7">IA</span></div>
+      <div style="background:#fff;border:1px solid #e8eaed;border-radius:13px;box-shadow:0 1px 3px rgba(0,0,0,.06);display:flex;flex-direction:column;height:340px;overflow:hidden">
+        <div id="chatScroll" style="flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px">
+          ${v.chatDisp.map(m=>m.isUser
+            ? `<div style="align-self:flex-end;max-width:85%;background:#37d899;color:#fff;border-radius:11px 11px 2px 11px;padding:9px 12px;font-weight:500;font-size:12px;line-height:1.5">${esc(m.text)}</div>`
+            : `<div style="align-self:flex-start;max-width:85%;background:#f8fafc;color:#0f172a;border-radius:11px 11px 11px 2px;padding:9px 12px;font-weight:500;font-size:12px;line-height:1.5">${esc(m.text)}</div>`).join('')}
+          ${v.chatLoading?`<div style="align-self:flex-start;font-weight:600;font-size:11px;color:#94a3b8">Consultando…</div>`:''}
+        </div>
+        <div style="border-top:1px solid #e8eaed;padding:10px;display:flex;gap:8px">
+          <input data-act="chatInput" value="${esc(v.chatInput)}" placeholder="Pergunte sobre o mercado farma/varejo..." style="flex:1;background:#f8fafc;border:1.5px solid #e8eaed;border-radius:9px;padding:8px 11px;font-family:Inter;font-size:12px;color:#0f172a"/>
+          <button data-act="sendChat" style="background:#37d899;border:none;border-radius:9px;width:36px;display:flex;align-items:center;justify-content:center;color:#fff;cursor:pointer"><i data-lucide="send" style="width:14px;height:14px"></i></button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function brandHTML(v){
+  return `<div>
+    <div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:11px;padding:12px 15px;font-weight:500;font-size:12px;line-height:1.5;color:#78350f;margin-bottom:20px">
+      Estrutura pronta para receber pesquisa de marca real (awareness, NPS, social listening). Os valores abaixo são ilustrativos até essa integração.
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+      ${brandBig('Awareness (Lembrança de Marca)', v.awarenessFmt, v.awarenessTrend)}
+      ${brandBig('NPS / Satisfação', v.npsFmt, v.npsTrend)}
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div style="${panel()}">
+        <div style="font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:12px">Sentimento (Promotores x Detratores)</div>
+        ${v.sentimento.map(s=>miniBar(s.nome, s.pctFmt, s.barStyle)).join('')}
+      </div>
+      <div style="${panel()}">
+        <div style="font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:12px">Awareness vs Concorrência</div>
+        ${v.competidores.map(c=>miniBar(c.nome, c.pctFmt, c.barStyle)).join('')}
+      </div>
+    </div>
+  </div>`;
+}
+
+// -- fragmentos reutilizáveis --
+function panel(){ return 'background:#fff;border:1px solid #e8eaed;border-radius:13px;padding:18px 20px;box-shadow:0 1px 3px rgba(0,0,0,.06)'; }
+function card(label,val,sub){ return `<div style="background:#fff;border:1px solid #e8eaed;border-radius:13px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
+  <div style="font-weight:700;font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:9px">${label}</div>
+  <div style="font-weight:800;font-size:23px;color:#0f172a;letter-spacing:-.4px">${esc(val)}</div>
+  <div style="font-weight:600;font-size:11px;color:#94a3b8;margin-top:6px">${esc(sub)}</div></div>`; }
+function cardSmall(label,val){ return `<div style="background:#fff;border:1px solid #e8eaed;border-radius:13px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
+  <div style="font-weight:700;font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:9px">${label}</div>
+  <div style="font-weight:800;font-size:22px;color:#0f172a">${esc(val)}</div></div>`; }
+function bar2(nome,right,barStyle){ return `<div style="margin-bottom:13px">
+  <div style="display:flex;justify-content:space-between;font-weight:600;font-size:12px;color:#334155;margin-bottom:5px"><span>${esc(nome)}</span><span>${esc(right)}</span></div>
+  <div style="background:#f1f5f9;border-radius:99px;height:14px;overflow:hidden"><div style="${barStyle}"></div></div></div>`; }
+function miniBar(nome,right,barStyle){ return `<div style="margin-top:12px">
+  <div style="display:flex;justify-content:space-between;font-weight:600;font-size:12px;color:#334155;margin-bottom:5px"><span>${esc(nome)}</span><span>${esc(right)}</span></div>
+  <div style="background:#f1f5f9;border-radius:99px;height:6px;overflow:hidden"><div style="${barStyle}"></div></div></div>`; }
+function miniStat(label,val,cor){ return `<div style="flex:1;background:#fff;border:1px solid #e8eaed;border-radius:13px;padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
+  <div style="font-weight:700;font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:${cor};margin-bottom:7px">${esc(label)}</div>
+  <div style="font-weight:800;font-size:20px;color:#0f172a">${esc(val)}</div></div>`; }
+function kv(k,val){ return `<div><div style="font-weight:600;font-size:9px;text-transform:uppercase;color:#94a3b8;margin-bottom:2px">${esc(k)}</div><div style="font-weight:700;font-size:12px;color:#334155">${esc(val)}</div></div>`; }
+function sugCard(texto,cor){ return `<div style="background:#fff;border:1px solid #e8eaed;border-left:4px solid ${cor};border-radius:11px;padding:13px 15px;box-shadow:0 1px 3px rgba(0,0,0,.06)"><div style="font-weight:500;font-size:12px;line-height:1.5;color:#1a2040">${esc(texto)}</div></div>`; }
+function brandBig(label,val,trend){ return `<div style="${panel()}">
+  <div style="font-weight:700;font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:6px">${esc(label)}</div>
+  <div style="font-weight:800;font-size:28px;color:#0f172a;margin-bottom:10px">${esc(val)}</div>
+  <div style="display:flex;align-items:flex-end;gap:8px;height:70px">
+    ${trend.map(bar=>`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;height:100%;justify-content:flex-end"><div style="${bar.barStyle}"></div><div style="font-weight:600;font-size:9px;color:#94a3b8">${esc(bar.label)}</div></div>`).join('')}
+  </div></div>`; }
+function opt(val,label,cur){ return `<option value="${esc(val)}"${String(cur)===String(val)?' selected':''}>${esc(label)}</option>`; }
+
+// ---- SHELL + RENDER ----
+function render(){
+  const v = computeVals();
+  const body = v.isHome?homeHTML(v):v.isVisao?visaoHTML(v):v.isCampanhas?campanhasHTML(v):v.isAnalytics?analyticsHTML(v):v.isIndicadores?indicadoresHTML(v):v.isComentarios?comentariosHTML(v):brandHTML(v);
+  const monthSel = v.isVisao ? `<select data-act="month" style="background:#f8fafc;border:1.5px solid #e8eaed;border-radius:9px;padding:8px 12px;font-weight:600;font-size:12px;color:#0f172a;cursor:pointer">${v.monthOptions.map(mo=>opt(mo.idx,mo.label,v.monthIdx)).join('')}</select>` : '';
+
+  document.getElementById('app').innerHTML = `
+  <div style="display:flex;height:100vh;background:#f5f6fa;color:#0f172a;overflow:hidden;font-size:14px">
+    <nav style="width:60px;background:#fff;border-right:1px solid #e8eaed;display:flex;flex-direction:column;align-items:center;padding:14px 0;flex-shrink:0;gap:6px">
+      <div style="width:36px;height:36px;border-radius:11px;background:#37d899;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;color:#fff;letter-spacing:-.5px;box-shadow:0 4px 12px rgba(55,216,153,.35);margin-bottom:8px">M</div>
+      <div style="width:28px;height:1px;background:#e8eaed;margin:2px 0 6px"></div>
+      ${v.navItems.map(item=>`<button data-act="tab" data-val="${esc(item.id)}" title="${esc(item.label)}" style="${item.wrapStyle}"><i data-lucide="${esc(item.icon)}" style="width:19px;height:19px"></i></button>`).join('')}
+    </nav>
+    <div style="flex:1;display:flex;flex-direction:column;overflow:hidden">
+      <div style="background:#fff;border-bottom:1px solid #e8eaed;padding:0 26px;height:60px;display:flex;align-items:center;gap:16px;flex-shrink:0;box-shadow:0 1px 3px rgba(0,0,0,.06)">
+        <div>
+          <div style="font-weight:800;font-size:17px;line-height:1.1;color:#0f172a;letter-spacing:-.3px">${esc(v.tabTitle)}</div>
+          <div style="font-weight:500;font-size:11px;line-height:1;color:#94a3b8;margin-top:3px">${esc(v.tabSub)}</div>
+        </div>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:10px">
+          <span style="display:inline-flex;align-items:center;gap:6px;background:#f0fdf4;border:1px solid #86efac;color:#065f46;padding:6px 11px;border-radius:99px;font-weight:600;font-size:11px">
+            <i data-lucide="refresh-cw" style="width:12px;height:12px"></i> Atualizado em ${esc(v.atualizacao)}
+          </span>
+          ${monthSel}
+        </div>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:24px 28px 44px">${body}</div>
+    </div>
+  </div>`;
+
+  wireEvents();
+  if (window.lucide) window.lucide.createIcons({ attrs:{ 'stroke-width':1.8 } });
+  const cs = document.getElementById('chatScroll'); if (cs) cs.scrollTop = cs.scrollHeight;
+}
+
+function wireEvents(){
+  document.querySelectorAll('[data-act]').forEach(el=>{
+    const act = el.getAttribute('data-act'), val = el.getAttribute('data-val');
+    switch(act){
+      case 'tab': el.onclick=()=>{ state.tab=val; render(); }; break;
+      case 'ch': el.onclick=()=>{ state.chFilter=val; render(); }; break;
+      case 'budgetDir': el.onclick=()=>{ state.budgetDir = state.budgetDir==='desc'?'asc':'desc'; render(); }; break;
+      case 'month': el.onchange=e=>{ state.monthIdx=Number(e.target.value); render(); }; break;
+      case 'campPlat': el.onchange=e=>{ state.campPlat=e.target.value; render(); }; break;
+      case 'campSort': el.onchange=e=>{ state.campSort=e.target.value; render(); }; break;
+      case 'newComment': el.oninput=e=>{ state.newComment=e.target.value; }; break;
+      case 'newCommentTag': el.onchange=e=>{ state.newCommentTag=e.target.value; }; break;
+      case 'addComment': el.onclick=addComment; break;
+      case 'rmComment': el.onclick=()=>removeComment(val); break;
+      case 'chatInput': el.oninput=e=>{ state.chatInput=e.target.value; };
+                        el.onkeydown=e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendChat(); } }; break;
+      case 'sendChat': el.onclick=sendChat; break;
+    }
+  });
+}
+
+function addComment(){
+  const txt = (state.newComment||'').trim(); if(!txt) return;
+  const d = new Date();
+  const date = String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();
+  state.comments = [{ id:Date.now(), date, tag:state.newCommentTag, text:txt }, ...state.comments];
+  state.newComment=''; saveComments(state.comments); render();
+}
+function removeComment(id){
+  state.comments = state.comments.filter(c=>String(c.id)!==String(id));
+  saveComments(state.comments); render();
+}
+
+async function sendChat(){
+  const q = (state.chatInput||'').trim(); if(!q || state.chatLoading) return;
+  state.chat = [...state.chat, { role:'user', text:q }];
+  state.chatInput=''; state.chatLoading=true; render();
+  try {
+    let answer;
+    if (CONFIG.CHAT_ENDPOINT){
+      const messages = state.chat.map(m=>({ role:m.role==='assistant'?'assistant':'user', content:m.text }));
+      const res = await fetch(CONFIG.CHAT_ENDPOINT, { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ messages, system:'Você é um analista de inteligência de mercado para o setor farma/varejo brasileiro (drogarias, ex: Bom Preço). Responda em português, direto e prático, focado em marketing, mídia paga, concorrência e comportamento do consumidor. Máximo 100 palavras.', max_tokens:400 }) });
+      const data = await res.json();
+      answer = data.answer || data.text || data.content || 'Sem resposta do endpoint.';
+    } else {
+      answer = 'Assistente de IA não configurado nesta versão publicada. Para ativar, defina CONFIG.CHAT_ENDPOINT com o endpoint da sua API (ex.: função serverless que chama a API da Anthropic).';
+    }
+    state.chat = [...state.chat, { role:'assistant', text:answer }];
+  } catch(e){
+    state.chat = [...state.chat, { role:'assistant', text:'Assistente indisponível agora. Tente novamente em instantes.' }];
+  }
+  state.chatLoading=false; render();
+}
+
+// ============================================================
+//  CARREGAMENTO DE DADOS (Google Sheet opcional = tempo real)
+// ============================================================
+// CSV esperado (formato longo): serie,jan,fev,mar,abr,mai,jun,jul
+//   ex.: loja.fat,15158040,13623023,...   (7 valores; vazio = null)
+// Séries: loja.fat2025, loja.fat, loja.crescMes, loja.notas, loja.ticket,
+//         site.fat, site.crescMes, site.notas, site.ticket, site.visitas, site.conversao,
+//         callcenter.fat, callcenter.crescMes, callcenter.notas, callcenter.ticket,
+//         ifood.fat, ifood.crescMes, ifood.notas, ifood.ticket
+// Aceita número em pt-BR ("1.234,56") ou padrão ("1234.56"). Vazio => null.
+function toNum(t){
+  t = (t||'').trim();
+  if (t==='') return null;
+  if (t.includes(',')) t = t.replace(/\./g,'').replace(',','.');
+  const n = Number(t);
+  return isNaN(n) ? null : n;
+}
+function parseCSV(text){
+  const rows = text.trim().split(/\r?\n/).map(r=>r.split(','));
+  rows.shift(); // cabeçalho
+  rows.forEach(cols=>{
+    const serie = (cols[0]||'').trim();
+    if(!serie) return;
+    if(serie==='atualizacao'){ if(cols[1]) ATUALIZACAO=cols[1].trim(); return; }
+    const parts = serie.split('.'); if(parts.length!==2) return;
+    const [grp,met] = parts; if(!DATA[grp]) return;
+    DATA[grp][met] = cols.slice(1,8).map(toNum);
+  });
+}
+async function loadFromSheet(){
+  if(!CONFIG.SHEET_CSV_URL) return false;
+  try {
+    const res = await fetch(CONFIG.SHEET_CSV_URL, { cache:'no-store' });
+    const text = await res.text();
+    parseCSV(text);
+    return true;
+  } catch(e){ console.warn('Falha ao ler a planilha, usando dados embutidos.', e); return false; }
+}
+
+async function boot(){
+  await loadFromSheet();
+  render();
+  if (CONFIG.SHEET_CSV_URL && CONFIG.REFRESH_MS){
+    setInterval(async ()=>{ const ok = await loadFromSheet(); if(ok) render(); }, CONFIG.REFRESH_MS);
+  }
+}
+boot();
+</script>
+</body>
+</html>
