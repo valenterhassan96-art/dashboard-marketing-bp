@@ -51,6 +51,10 @@ const CONFIG = {
   // Opcional: endpoint próprio para o assistente de IA (POST {messages,system}).
   // Vazio => o chat responde com uma mensagem de "configure a IA".
   CHAT_ENDPOINT: '',
+  // BP RUN (Ticket Sports): URL CSV publicada de uma Google Sheet com o relatório
+  // de inscritos exportado do painel do organizador. Vazio => usar o botão
+  // "Importar relatório" na aba BP RUN.
+  BPRUN_CSV_URL: '',
 };
 
 const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho'];
@@ -149,6 +153,11 @@ const MSG_SUG = [
   { texto:'Ampliar prova social e cupom de primeira compra no site — conversão ainda baixa apesar do tráfego alto em meses de pico.' },
 ];
 
+// ---- BP RUN (Ticket Sports) ----
+const BPRUN_KEY = 'bp_dash_bprun_v1';
+function loadBPRun(){ try { const s = localStorage.getItem(BPRUN_KEY); if (s) return JSON.parse(s); } catch(e){} return null; }
+function saveBPRun(d){ try { localStorage.setItem(BPRUN_KEY, JSON.stringify(d)); } catch(e){} }
+
 // ---- ESTADO ----
 const STORE_KEY = 'bp_dash_comments_v1';
 function loadComments(){
@@ -173,6 +182,8 @@ const state = {
   chat: [ { role:'assistant', text:'Pergunte sobre tendências do varejo farma, concorrência ou benchmarks de mídia paga.' } ],
   chatInput: '',
   chatLoading: false,
+  bprun: loadBPRun(),
+  bprunMod: 'todas',
 };
 
 // ---- HELPERS ----
@@ -294,13 +305,13 @@ function computeVals(){
     {id:'home',label:'Home',icon:'home'},{id:'visao',label:'Visão Geral',icon:'layout-dashboard'},
     {id:'campanhas',label:'Campanhas',icon:'megaphone'},{id:'analytics',label:'Google Analytics',icon:'line-chart'},
     {id:'indicadores',label:'Indicadores',icon:'lightbulb'},{id:'comentarios',label:'Comentários & Mercado',icon:'message-square'},
-    {id:'brand',label:'Brand Equity',icon:'award'},
+    {id:'brand',label:'Brand Equity',icon:'award'},{id:'bprun',label:'BP RUN',icon:'footprints'},
   ];
   const navItems = navDefs.map(n=>{ const active=tab===n.id; return { id:n.id, label:n.label, icon:n.icon,
     wrapStyle:st({width:42,height:42,borderRadius:11,display:'flex',alignItems:'center',justifyContent:'center',border:'none',cursor:'pointer',background:active?'#f0fdf4':'transparent',color:active?'#065f46':'#94a3b8'}) }; });
 
-  const tabTitle = {home:'Home',visao:'Visão Geral',campanhas:'Campanhas & Resultados',analytics:'Google Analytics',indicadores:'Indicadores & Recomendações',comentarios:'Comentários & Inteligência de Mercado',brand:'Brand Equity'}[tab];
-  const tabSub = {home:'Fluxo de clientes e impacto das campanhas — mês atual',visao:'Faturamento, canais e evolução mensal',campanhas:'Orçamento de agosto, Meta Ads e Google Ads',analytics:'Tráfego, conversão e comportamento no site',indicadores:'Comparativos, alertas e sugestões geradas com apoio de IA',comentarios:'Seu parecer, tendências de mercado e assistente de IA',brand:'Percepção e reputação de marca'}[tab];
+  const tabTitle = {home:'Home',visao:'Visão Geral',campanhas:'Campanhas & Resultados',analytics:'Google Analytics',indicadores:'Indicadores & Recomendações',comentarios:'Comentários & Inteligência de Mercado',brand:'Brand Equity',bprun:'BP RUN — Kits vendidos'}[tab];
+  const tabSub = {home:'Fluxo de clientes e impacto das campanhas — mês atual',visao:'Faturamento, canais e evolução mensal',campanhas:'Orçamento de agosto, Meta Ads e Google Ads',analytics:'Tráfego, conversão e comportamento no site',indicadores:'Comparativos, alertas e sugestões geradas com apoio de IA',comentarios:'Seu parecer, tendências de mercado e assistente de IA',brand:'Percepção e reputação de marca',bprun:'Inscrições da Ticket Sports por data e modalidade'}[tab];
 
   // ── HOME ──
   const cur = CURIDX, win = [cur-2,cur-1,cur];
@@ -349,7 +360,7 @@ function computeVals(){
   return {
     navItems, tabTitle, tabSub, atualizacao:ATUALIZACAO,
     isHome:tab==='home', isVisao:tab==='visao', isCampanhas:tab==='campanhas', isAnalytics:tab==='analytics',
-    isIndicadores:tab==='indicadores', isComentarios:tab==='comentarios', isBrand:tab==='brand',
+    isIndicadores:tab==='indicadores', isComentarios:tab==='comentarios', isBrand:tab==='brand', isBPRun:tab==='bprun',
     janelaLabel: MESES[win[0]].slice(0,3)+' – '+MESES[win[2]].slice(0,3)+'/2026',
     motionBars, fluxo, fluxoDigital, yoyBars,
     clientesMesFmt:num(clientesMes), clientesMoMFmt:spct(clientesMoM),
@@ -721,7 +732,7 @@ function opt(val,label,cur){ return `<option value="${esc(val)}"${String(cur)===
 // ---- SHELL + RENDER ----
 function render(){
   const v = computeVals();
-  const body = v.isHome?homeHTML(v):v.isVisao?visaoHTML(v):v.isCampanhas?campanhasHTML(v):v.isAnalytics?analyticsHTML(v):v.isIndicadores?indicadoresHTML(v):v.isComentarios?comentariosHTML(v):brandHTML(v);
+  const body = v.isHome?homeHTML(v):v.isVisao?visaoHTML(v):v.isCampanhas?campanhasHTML(v):v.isAnalytics?analyticsHTML(v):v.isIndicadores?indicadoresHTML(v):v.isComentarios?comentariosHTML(v):v.isBPRun?bprunHTML():brandHTML(v);
   const monthSel = v.isVisao ? `<select data-act="month" style="background:#f8fafc;border:1.5px solid #e8eaed;border-radius:9px;padding:8px 12px;font-weight:600;font-size:12px;color:#0f172a;cursor:pointer">${v.monthOptions.map(mo=>opt(mo.idx,mo.label,v.monthIdx)).join('')}</select>` : '';
 
   document.getElementById('app').innerHTML = `
@@ -770,6 +781,9 @@ function wireEvents(){
       case 'chatInput': el.oninput=e=>{ state.chatInput=e.target.value; };
                         el.onkeydown=e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendChat(); } }; break;
       case 'sendChat': el.onclick=sendChat; break;
+      case 'bprunFile': el.onchange=e=>importBPRunFile(e.target.files[0]); break;
+      case 'bprunMod': el.onchange=e=>{ state.bprunMod=e.target.value; render(); }; break;
+      case 'bprunClear': el.onclick=()=>{ state.bprun=null; try{localStorage.removeItem(BPRUN_KEY);}catch(e){} render(); }; break;
     }
   });
 }
@@ -847,11 +861,172 @@ async function loadFromSheet(){
   } catch(e){ console.warn('Falha ao ler a planilha, usando dados embutidos.', e); return false; }
 }
 
+// ============================================================
+//  BP RUN — relatório de inscritos da Ticket Sports
+// ============================================================
+// Exporte no painel do organizador (Ticket Sports > Evento > Relatórios >
+// Inscritos) em CSV, ou salve o Excel como CSV. As colunas são reconhecidas
+// pelo nome, sem depender da ordem:
+//   data   : "Data da inscrição", "Data do pedido", "Data compra", "Data"
+//   modal. : "Modalidade", "Distância", "Categoria", "Prova"
+//   kit    : "Kit", "Tipo de kit"            (opcional)
+//   valor  : "Valor", "Valor pago", "Total"  (opcional)
+//   status : "Status", "Situação"            (opcional; cancelados/pendentes são ignorados)
+//   sexo   : "Sexo", "Gênero"                (opcional)
+//   camisa : "Camiseta", "Tamanho"           (opcional)
+function splitCSVLine(line, sep){
+  const out=[]; let cur='', q=false;
+  for (let i=0;i<line.length;i++){
+    const c=line[i];
+    if (q){ if(c==='"'){ if(line[i+1]==='"'){cur+='"';i++;} else q=false; } else cur+=c; }
+    else if (c==='"') q=true;
+    else if (c===sep){ out.push(cur); cur=''; }
+    else cur+=c;
+  }
+  out.push(cur); return out.map(x=>x.trim());
+}
+function normKey(s){ return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim(); }
+function findCol(head, names){
+  for (const n of names){ const i = head.findIndex(h=>h===n); if(i>=0) return i; }
+  for (const n of names){ const i = head.findIndex(h=>h.includes(n)); if(i>=0) return i; }
+  return -1;
+}
+function parseDateBR(t){
+  t=(t||'').trim(); let m;
+  if ((m=t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/))){ const y=m[3].length===2?'20'+m[3]:m[3]; return y+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0'); }
+  if ((m=t.match(/^(\d{4})-(\d{2})-(\d{2})/))) return m[1]+'-'+m[2]+'-'+m[3];
+  return null;
+}
+function parseBPRun(text){
+  text = text.replace(/^﻿/,'');
+  const lines = text.split(/\r?\n/).filter(l=>l.trim());
+  if (lines.length<2) throw new Error('Arquivo vazio.');
+  const sep = (lines[0].split(';').length > lines[0].split(',').length) ? ';' : ',';
+  const head = splitCSVLine(lines[0], sep).map(normKey);
+  const c = {
+    data:   findCol(head, ['data da inscricao','data inscricao','data do pedido','data da compra','data compra','data pagamento','data']),
+    mod:    findCol(head, ['modalidade','distancia','prova','categoria']),
+    kit:    findCol(head, ['tipo de kit','kit']),
+    valor:  findCol(head, ['valor pago','valor total','valor','total']),
+    status: findCol(head, ['status','situacao']),
+    sexo:   findCol(head, ['sexo','genero']),
+    camisa: findCol(head, ['camiseta','camisa','tamanho']),
+  };
+  if (c.data<0 || c.mod<0) throw new Error('Não encontrei as colunas de data e/ou modalidade no cabeçalho.');
+  const IGN = /cancel|estorn|pendent|aguard|recus|expir/;
+  const rows=[]; let ignorados=0;
+  lines.slice(1).forEach(l=>{
+    const f = splitCSVLine(l, sep);
+    const d = parseDateBR(f[c.data]); if(!d){ ignorados++; return; }
+    if (c.status>=0 && IGN.test(normKey(f[c.status]))){ ignorados++; return; }
+    rows.push({ d, mod:(f[c.mod]||'—').trim()||'—', kit:c.kit>=0?(f[c.kit]||'—'):null,
+      valor:c.valor>=0?toNum((f[c.valor]||'').replace(/R\$\s*/,'')):null,
+      sexo:c.sexo>=0?(f[c.sexo]||'—'):null, camisa:c.camisa>=0?(f[c.camisa]||'—'):null });
+  });
+  const now=new Date();
+  return { rows, ignorados, importado: now.toLocaleDateString('pt-BR')+' '+now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) };
+}
+function importBPRunFile(file){
+  if(!file) return;
+  const r = new FileReader();
+  r.onload = ()=>{
+    try { state.bprun = parseBPRun(String(r.result)); saveBPRun(state.bprun); state.bprunMod='todas'; render(); }
+    catch(e){ alert('Não foi possível ler o relatório: '+e.message); }
+  };
+  r.readAsText(file, 'utf-8');
+}
+async function loadBPRunSheet(){
+  if(!CONFIG.BPRUN_CSV_URL) return false;
+  try { const res = await fetch(CONFIG.BPRUN_CSV_URL, { cache:'no-store' }); state.bprun = parseBPRun(await res.text()); return true; }
+  catch(e){ console.warn('Falha ao ler a planilha do BP RUN.', e); return false; }
+}
+function countBy(rows, key){
+  const m={}; rows.forEach(r=>{ const k=r[key]; if(k==null) return; m[k]=(m[k]||0)+1; });
+  return Object.entries(m).sort((a,b)=>b[1]-a[1]);
+}
+function bprunHTML(){
+  const B = state.bprun;
+  const lbl = 'font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:12px';
+  const importBtn = `<label style="display:inline-flex;align-items:center;gap:7px;background:#37d899;color:#fff;padding:9px 14px;border-radius:9px;font-weight:700;font-size:12px;cursor:pointer">
+      <i data-lucide="upload" style="width:14px;height:14px"></i> ${B?'Atualizar relatório':'Importar relatório'}
+      <input type="file" accept=".csv,text/csv" data-act="bprunFile" style="display:none"></label>`;
+  if (!B || !B.rows.length){
+    return `<div style="${panel()};max-width:640px">
+      <div style="font-weight:800;font-size:15px;margin-bottom:8px">Conecte os dados da BP RUN</div>
+      <div style="font-size:12.5px;line-height:1.6;color:#475569;margin-bottom:16px">
+        1. No painel do organizador da <b>Ticket Sports</b>, abra o evento BP RUN → <b>Relatórios → Inscritos</b> e exporte.<br>
+        2. Se vier em Excel, salve como <b>CSV</b>.<br>
+        3. Importe aqui. O painel reconhece as colunas de data da inscrição, modalidade, kit, valor, status, sexo e camiseta.<br>
+        <span style="color:#94a3b8">Para atualizar sozinho: suba o relatório numa Google Sheet, publique como CSV e cole a URL em <code>CONFIG.BPRUN_CSV_URL</code>.</span>
+      </div>${importBtn}</div>`;
+  }
+  const mods = countBy(B.rows,'mod').map(x=>x[0]);
+  const rows = state.bprunMod==='todas' ? B.rows : B.rows.filter(r=>r.mod===state.bprunMod);
+  const total = rows.length;
+  const receita = rows.reduce((s,r)=>s+(r.valor||0),0);
+  const temValor = rows.some(r=>r.valor!=null);
+  const dias = countBy(rows,'d').sort((a,b)=>a[0]<b[0]?-1:1);
+  const fmtD = d=>d.slice(8,10)+'/'+d.slice(5,7);
+  const hoje = new Date(); const iso = x=>x.toISOString().slice(0,10);
+  const d7 = iso(new Date(hoje.getTime()-6*864e5));
+  const ult7 = rows.filter(r=>r.d>=d7).length;
+  const pico = dias.reduce((a,b)=>b[1]>(a?a[1]:0)?b:a,null);
+  const maxDia = Math.max(...dias.map(x=>x[1]),1);
+  const series = dias.slice(-45);
+  const chart = `<div style="display:flex;align-items:flex-end;gap:3px;height:170px;padding-top:6px">
+    ${series.map(([d,n])=>`<div title="${fmtD(d)}: ${n} kits" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;min-width:0">
+      <div style="font-size:9px;font-weight:700;color:#64748b;margin-bottom:2px">${series.length<=20?n:''}</div>
+      <div style="width:100%;background:#37d899;border-radius:4px 4px 0 0;height:${Math.max(2,n/maxDia*140)}px;transform-origin:bottom;animation:omGrow .5s ease"></div>
+      <div style="font-size:8.5px;color:#94a3b8;margin-top:4px;white-space:nowrap">${series.length<=20||series.indexOf(series.find(s=>s[0]===d))%5===0?fmtD(d):''}</div></div>`).join('')}
+  </div>`;
+  const bars = (list, cor) => { const mx=Math.max(...list.map(x=>x[1]),1);
+    return list.map(([k,n])=>bar2(k, num(n)+' · '+pct(n/total,0), st({height:7,borderRadius:99,background:cor,width:(n/mx*100)+'%'}))).join(''); };
+  const porMod = countBy(B.rows,'mod');
+  const tabela = `<table style="width:100%;border-collapse:collapse;font-size:12px">
+    <thead><tr style="text-align:left;color:#94a3b8;font-size:10px;text-transform:uppercase">
+      <th style="padding:6px 4px">Data</th>${mods.map(m=>`<th style="padding:6px 4px;text-align:right">${esc(m)}</th>`).join('')}<th style="padding:6px 4px;text-align:right">Total</th><th style="padding:6px 4px;text-align:right">Acumulado</th></tr></thead>
+    <tbody>${(()=>{ let acc=0; const all=countBy(B.rows,'d').sort((a,b)=>a[0]<b[0]?-1:1);
+      const out = all.map(([d,n])=>{ acc+=n; return `<tr style="border-top:1px solid #f1f5f9"><td style="padding:6px 4px;font-weight:600">${fmtD(d)}/${d.slice(0,4)}</td>
+        ${mods.map(m=>`<td style="padding:6px 4px;text-align:right">${num(B.rows.filter(r=>r.d===d&&r.mod===m).length)||'—'}</td>`).join('')}
+        <td style="padding:6px 4px;text-align:right;font-weight:700">${num(n)}</td><td style="padding:6px 4px;text-align:right;color:#64748b">${num(acc)}</td></tr>`; });
+      return out.reverse().join(''); })()}</tbody></table>`;
+  const side = (title,key,cor) => B.rows.some(r=>r[key]!=null) ? `<div style="${panel()}"><div style="${lbl}">${title}</div>${bars(countBy(rows,key),cor)}</div>` : '';
+  return `<div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap">
+      <select data-act="bprunMod" style="background:#fff;border:1.5px solid #e8eaed;border-radius:9px;padding:8px 12px;font-weight:600;font-size:12px;cursor:pointer">
+        ${opt('todas','Todas as modalidades',state.bprunMod)}${mods.map(m=>opt(m,m,state.bprunMod)).join('')}</select>
+      <span style="font-size:11px;color:#94a3b8">Relatório importado em ${esc(B.importado)}${B.ignorados?' · '+num(B.ignorados)+' linhas ignoradas (canceladas/pendentes/sem data)':''}</span>
+      <div style="margin-left:auto;display:flex;gap:8px">${importBtn}
+        <button data-act="bprunClear" style="background:#fff;border:1.5px solid #e8eaed;border-radius:9px;padding:8px 12px;font-weight:600;font-size:12px;color:#64748b;cursor:pointer">Limpar</button></div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-bottom:18px">
+      ${card('Kits vendidos', num(total), state.bprunMod==='todas'?'todas as modalidades':state.bprunMod)}
+      ${card('Últimos 7 dias', num(ult7), 'kits vendidos')}
+      ${card('Média por dia', dias.length?(total/dias.length).toFixed(1).replace('.',','):'—', num(dias.length)+' dias com venda')}
+      ${card('Pico de vendas', pico?num(pico[1]):'—', pico?'em '+fmtD(pico[0]):'')}
+      ${temValor?card('Receita', brl(receita), 'ticket médio '+brl(total?receita/total:0,2)):''}
+    </div>
+    <div style="${panel()};margin-bottom:18px"><div style="${lbl}">Kits vendidos por dia${dias.length>45?' (últimos 45 dias)':''}</div>${chart}</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-bottom:18px">
+      <div style="${panel()}"><div style="${lbl}">Por modalidade</div>${(()=>{ const mx=Math.max(...porMod.map(x=>x[1]),1), T=B.rows.length;
+        return porMod.map(([k,n])=>bar2(k, num(n)+' · '+pct(n/T,0), st({height:7,borderRadius:99,background:'#3b82f6',width:(n/mx*100)+'%'}))).join(''); })()}</div>
+      ${side('Por tipo de kit','kit','#8b5cf6')}
+      ${side('Por sexo','sexo','#f97316')}
+      ${side('Por tamanho de camiseta','camisa','#37d899')}
+    </div>
+    <div style="${panel()};overflow-x:auto"><div style="${lbl}">Vendas por data × modalidade</div>${tabela}</div>
+  </div>`;
+}
+
 async function boot(){
   await loadFromSheet();
+  await loadBPRunSheet();
   render();
   if (CONFIG.SHEET_CSV_URL && CONFIG.REFRESH_MS){
     setInterval(async ()=>{ const ok = await loadFromSheet(); if(ok) render(); }, CONFIG.REFRESH_MS);
+  }
+  if (CONFIG.BPRUN_CSV_URL && CONFIG.REFRESH_MS){
+    setInterval(async ()=>{ const ok = await loadBPRunSheet(); if(ok && state.tab==='bprun') render(); }, CONFIG.REFRESH_MS);
   }
 }
 boot();

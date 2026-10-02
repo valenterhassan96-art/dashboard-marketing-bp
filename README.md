@@ -14,6 +14,7 @@ hospedagem estática (GitHub Pages, Netlify, Vercel).
 ```
 index.html         → o dashboard inteiro (sem dependências de build)
 dados-modelo.csv   → modelo da planilha de dados
+modelo-bprun.csv   → exemplo FICTÍCIO do relatório de inscritos da Ticket Sports (aba BP RUN)
 README.md
 ```
 
@@ -31,6 +32,7 @@ via CDN.
 | Indicadores | Comparativos do mês, alertas de criativo, sugestões de realocação de verba |
 | Comentários & Mercado | Pareceres da equipe (salvos no navegador) + assistente de IA |
 | Brand Equity | Awareness, NPS, sentimento, comparativo com concorrência |
+| BP RUN | Kits vendidos na Ticket Sports por data, modalidade, tipo de kit, sexo e camiseta (importa o relatório de inscritos) |
 
 ### Origem dos dados
 
@@ -134,3 +136,13 @@ python -m http.server 8000
   dispositivo, não compartilhados entre a equipe. Para torná-los compartilhados é preciso
   um backend (Supabase resolve bem).
 - Todo texto vindo de dados passa por escape de HTML antes de ir para a tela.
+
+## BP RUN (Ticket Sports)
+
+A Ticket Sports não tem API pública, e as vendas só aparecem no painel do organizador (que exige login). Por isso a aba **BP RUN** lê o relatório exportado:
+
+1. Painel do organizador → evento BP RUN → **Relatórios → Inscritos** → exportar (salve como CSV se vier em Excel).
+2. Na aba BP RUN, clique em **Importar relatório**. Os dados ficam salvos só no navegador de quem importou.
+3. Para atualizar sozinho para todo mundo: cole o relatório numa Google Sheet, publique como CSV e coloque a URL em `CONFIG.BPRUN_CSV_URL`.
+
+Colunas reconhecidas pelo nome (a ordem não importa; separador `;` ou `,`): data da inscrição, modalidade/distância/categoria (**obrigatórias**), tipo de kit, valor pago, status, sexo, camiseta. Linhas canceladas, estornadas ou pendentes são ignoradas.
