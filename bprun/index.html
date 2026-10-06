@@ -2,77 +2,132 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <title>BP RUN 2026 — Inscrições</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root{--bg:#f5f6fa;--card:#fff;--line:#e8eaed;--ink:#0f172a;--mut:#64748b;--soft:#94a3b8;--track:#f1f5f9;
         --c1:#37d899;--c2:#3b82f6;--c3:#8b5cf6;--c4:#f97316;--c5:#ec4899}
   *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
   body{font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--ink);font-size:14px}
-  header{background:var(--card);border-bottom:1px solid var(--line);padding:16px 24px;display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+  header{position:sticky;top:0;z-index:5;background:rgba(255,255,255,.96);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);
+         padding:12px 24px;padding-top:max(12px,env(safe-area-inset-top));display:flex;flex-wrap:wrap;gap:10px;align-items:center}
   header h1{font-size:19px;font-weight:800;letter-spacing:-.3px}
   header p{font-size:12px;color:var(--soft);margin-top:2px}
   .filters{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
-  select{font:inherit;font-size:12px;font-weight:600;background:#fff;border:1.5px solid var(--line);border-radius:9px;padding:8px 10px;cursor:pointer}
+  select{font:inherit;font-size:13px;font-weight:600;background:#fff;border:1.5px solid var(--line);border-radius:10px;padding:9px 10px;cursor:pointer;color:var(--ink);min-height:40px}
+  nav.jump{display:none}
   main{max-width:1280px;margin:0 auto;padding:20px 16px 48px}
+  section{scroll-margin-top:120px}
   .grid{display:grid;gap:14px;margin-bottom:14px}
-  .kpis{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
-  .two{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:16px 18px;box-shadow:0 1px 3px rgba(0,0,0,.05);min-width:0}
+  .kpis{grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
+  .two{grid-template-columns:repeat(auto-fit,minmax(300px,1fr));align-items:start}
+  #s-perfil .lbl-sec{grid-column:1/-1;margin:4px 2px -4px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:0 1px 3px rgba(0,0,0,.05);min-width:0}
   .lbl{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--soft);margin-bottom:10px}
-  .big{font-size:26px;font-weight:800;letter-spacing:-.5px}
+  .big{font-size:26px;font-weight:800;letter-spacing:-.5px;font-variant-numeric:tabular-nums}
   .sub{font-size:11.5px;font-weight:600;color:var(--soft);margin-top:4px}
   .row{margin-bottom:11px}
-  .row .t{display:flex;justify-content:space-between;gap:8px;font-size:12px;font-weight:600;color:#334155;margin-bottom:4px}
+  .row .t{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;font-weight:600;color:#334155;margin-bottom:4px}
   .row .t span:last-child{white-space:nowrap;font-variant-numeric:tabular-nums}
   .bar{background:var(--track);border-radius:99px;height:8px;overflow:hidden}
   .bar div{height:100%;border-radius:99px}
-  .legend{display:flex;flex-wrap:wrap;gap:12px;font-size:11.5px;font-weight:600;color:var(--mut);margin-bottom:8px}
+  .legend{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:11.5px;font-weight:600;color:var(--mut);margin-bottom:8px}
   .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
   svg text{font-family:Inter,sans-serif}
-  .tip{position:fixed;pointer-events:none;background:#0f172a;color:#fff;font-size:11.5px;padding:7px 9px;border-radius:7px;line-height:1.45;display:none;z-index:9}
-  table{width:100%;border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums}
-  th{font-size:10px;text-transform:uppercase;color:var(--soft);text-align:right;padding:6px 6px;position:sticky;top:0;background:#fff}
+  #chart{position:relative;touch-action:pan-y}
+  .tip{position:absolute;pointer-events:none;background:#0f172a;color:#fff;font-size:12px;padding:8px 10px;border-radius:8px;line-height:1.5;display:none;z-index:3;white-space:nowrap}
+  details.card>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;min-height:24px;-webkit-tap-highlight-color:transparent}
+  details.card:hover{border-color:#d5d9e0}
+  details.card>summary::-webkit-details-marker{display:none}
+  details.card>summary .lbl{margin:0}
+  details.card>summary .top{margin-left:auto;font-size:12px;font-weight:700;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55%}
+  details.card>summary .chev{width:18px;height:18px;flex:none;color:var(--soft);transition:transform .2s}
+  details[open].card>summary .chev{transform:rotate(180deg)}
+  details[open].card>summary .top{display:none}
+  details.card>summary+div{margin-top:12px}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums}
+  th{font-size:10px;text-transform:uppercase;color:var(--soft);text-align:right;padding:6px;position:sticky;top:0;background:#fff}
   th:first-child,td:first-child{text-align:left}
-  td{padding:6px;text-align:right;border-top:1px solid var(--track)}
-  .scroll{max-height:420px;overflow:auto}
-  footer{font-size:11px;color:var(--soft);text-align:center;margin-top:18px}
+  td{padding:7px 6px;text-align:right;border-top:1px solid var(--track)}
+  .scroll{max-height:420px;overflow:auto;-webkit-overflow-scrolling:touch}
+  .cupom{border-left:4px solid var(--c4);box-shadow:none}
+  .spark{display:flex;align-items:flex-end;gap:2px;height:42px;margin:12px 0 6px}
+  footer{font-size:11px;color:var(--soft);text-align:center;margin-top:18px;line-height:1.5}
+  .only-m{display:none}
+
+  @media (max-width:640px){
+    header{padding:10px 14px 0;gap:8px}
+    header h1{font-size:17px}
+    header p{font-size:11px}
+    .filters{margin:0;width:100%;display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+    select{font-size:12.5px;padding:8px 6px;width:100%;min-width:0}
+    nav.jump{display:flex;gap:6px;overflow-x:auto;width:calc(100% + 28px);margin:0 -14px;padding:8px 14px 10px;scrollbar-width:none}
+    nav.jump::-webkit-scrollbar{display:none}
+    nav.jump a{flex:none;font-size:12px;font-weight:700;color:var(--mut);background:var(--track);padding:7px 12px;border-radius:99px;text-decoration:none}
+    nav.jump a.on{background:var(--ink);color:#fff}
+    main{padding:12px 12px calc(32px + env(safe-area-inset-bottom))}
+    section{scroll-margin-top:150px}
+    .grid{gap:10px;margin-bottom:10px}
+    .kpis{grid-template-columns:1fr 1fr}
+    .kpis .card:first-child{grid-column:1/-1;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+    .kpis .card:first-child .lbl{width:100%;margin-bottom:0}
+    .kpis .card:first-child .big{font-size:38px}
+    .two{grid-template-columns:1fr}
+    .card{padding:13px 14px;border-radius:13px}
+    .big{font-size:22px}
+    .lbl{margin-bottom:8px}
+    .only-m{display:initial}
+    .only-d{display:none}
+    .scroll{max-height:none}
+  }
 </style>
 </head>
 <body>
 <header>
   <div><h1>BP RUN 2026 — Kits vendidos</h1><p id="meta"></p></div>
   <div class="filters">
-    <select id="fMod"></select>
-    <select id="fSexo"><option value="">Todos os sexos</option><option value="F">Feminino</option><option value="M">Masculino</option></select>
+    <select id="fPer" aria-label="Período">
+      <option value="">Período</option><option value="30">30 dias</option>
+      <option value="14">14 dias</option><option value="7">7 dias</option>
+    </select>
+    <select id="fMod" aria-label="Modalidade"></select>
+    <select id="fSexo" aria-label="Sexo"><option value="">Sexo</option><option value="F">Feminino</option><option value="M">Masculino</option></select>
   </div>
+  <nav class="jump" id="jump">
+    <a href="#s-resumo" class="on">Resumo</a><a href="#s-cupons">Cupons</a><a href="#s-grafico">Vendas/dia</a>
+    <a href="#s-perfil">Detalhes</a><a href="#s-tabela">Tabela</a>
+  </nav>
 </header>
 <main>
-  <div class="grid kpis" id="kpis"></div>
-  <div class="card" style="margin-bottom:14px">
+  <section id="s-resumo"><div class="grid kpis" id="kpis"></div></section>
+  <section id="s-cupons" class="card" style="margin-bottom:14px">
     <div class="lbl">Cupons de parceiros — uso</div>
     <div class="grid two" id="cupons" style="margin:0"></div>
-  </div>
-  <div class="card" style="margin-bottom:14px">
-    <div class="lbl">Kits vendidos por dia, por modalidade — linha = acumulado</div>
+  </section>
+  <section id="s-grafico" class="card" style="margin-bottom:14px">
+    <div class="lbl">Kits vendidos por dia<span class="only-d"> — linha = acumulado</span></div>
     <div class="legend" id="legend"></div>
-    <div id="chart"></div>
-  </div>
-  <div class="grid two">
-    <div class="card"><div class="lbl">Por modalidade</div><div id="bMod"></div></div>
-    <div class="card"><div class="lbl">Como ficou sabendo</div><div id="bComo"></div></div>
-    <div class="card"><div class="lbl">Canal da compra</div><div id="bOrig"></div></div>
-    <div class="card"><div class="lbl">Cupons</div><div id="bCupom"></div></div>
-    <div class="card"><div class="lbl">Faixa etária</div><div id="bIdade"></div></div>
-    <div class="card"><div class="lbl">Camisetas (modelo · tamanho)</div><div id="bCamisa"></div></div>
-    <div class="card"><div class="lbl">Dia da semana</div><div id="bSemana"></div></div>
-    <div class="card"><div class="lbl">Horário da compra</div><div id="bHora"></div></div>
-  </div>
-  <div class="card"><div class="lbl">Vendas por data × modalidade</div><div class="scroll" id="tabela"></div></div>
-  <footer>Somente números agregados — nenhum dado pessoal dos atletas é publicado. Fonte: relatório de Inscritos da Ticket Sports.</footer>
+    <div id="chart"><div class="tip" id="tip"></div></div>
+    <div class="sub only-m" style="font-weight:500">Toque nas barras para ver o detalhe do dia.</div>
+  </section>
+  <section id="s-perfil" class="grid two">
+    <div class="lbl lbl-sec">Detalhes — toque para abrir</div>
+    <details class="card"><summary><span class="lbl">Por modalidade</span><span class="top" id="tMod"></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></summary><div id="bMod"></div></details>
+    <details class="card"><summary><span class="lbl">Como ficou sabendo</span><span class="top" id="tComo"></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></summary><div id="bComo"></div></details>
+    <details class="card"><summary><span class="lbl">Canal da compra</span><span class="top" id="tOrig"></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></summary><div id="bOrig"></div></details>
+    <details class="card"><summary><span class="lbl">Todos os cupons</span><span class="top" id="tCupom"></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></summary><div id="bCupom"></div></details>
+    <details class="card"><summary><span class="lbl">Faixa etária</span><span class="top" id="tIdade"></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></summary><div id="bIdade"></div></details>
+    <details class="card"><summary><span class="lbl">Camisetas</span><span class="top" id="tCamisa"></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></summary><div id="bCamisa"></div></details>
+    <details class="card"><summary><span class="lbl">Dia da semana</span><span class="top" id="tSemana"></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></summary><div id="bSemana"></div></details>
+    <details class="card"><summary><span class="lbl">Horário da compra</span><span class="top" id="tHora"></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></summary><div id="bHora"></div></details>
+  </section>
+  <section id="s-tabela"><details class="card"><summary><span class="lbl">Vendas por data × modalidade</span><span class="top" id="tTab"></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></summary><div class="scroll" id="tabela"></div></details></section>
+  <footer>Somente números agregados — nenhum dado pessoal dos atletas é publicado.<br>Fonte: relatório de Inscritos da Ticket Sports.</footer>
 </main>
-<div class="tip" id="tip"></div>
 <script src="dados.js"></script>
 <script>
 const ALL = window.BPRUN.inscricoes;
@@ -80,102 +135,109 @@ const ALL = window.BPRUN.inscricoes;
 // acrescente o nome do cupom exatamente como aparece na Ticket Sports.
 const CUPONS_DESTAQUE = ['ALEXDASRESENHAS10'];
 const MODS = ['5 km','10 km','5 km PCD','5 km PCD Cadeirante','5 km PCD Visual'];
-const COR = {'5 km':'var(--c1)','10 km':'var(--c2)','5 km PCD':'var(--c3)','5 km PCD Cadeirante':'var(--c4)','5 km PCD Visual':'var(--c5)'};
+const COR = {'5 km':'var(--c1)','10 km':'var(--c2)','5 km PCD':'var(--c3)','5 km PCD Cadeirante':'var(--c4)','5 km PCD Visual':'var(--c5)','PCD':'var(--c3)'};
 const fmt = n => n.toLocaleString('pt-BR');
 const pct = (a,b) => b ? Math.round(a/b*100)+'%' : '—';
 const fd = iso => iso.slice(8,10)+'/'+iso.slice(5,7);
 const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const count = (rows,f) => { const m=new Map(); rows.forEach(r=>{const k=f(r); m.set(k,(m.get(k)||0)+1);}); return m; };
 const sorted = m => [...m].sort((a,b)=>b[1]-a[1]);
+const isMobile = () => matchMedia('(max-width:640px)').matches;
+
+// eixo de datas contínuo do evento inteiro
+const ALL_DAYS = (()=>{ const ds=ALL.map(r=>r.d).sort(), out=[];
+  for (let t=new Date(ds[0]+'T12:00'); t<=new Date(ds[ds.length-1]+'T12:00'); t.setDate(t.getDate()+1)) out.push(t.toISOString().slice(0,10));
+  return out; })();
 
 document.getElementById('meta').textContent = `Ticket Sports · evento 87490 · dados de ${window.BPRUN.gerado}`;
-const fMod = document.getElementById('fMod');
-fMod.innerHTML = '<option value="">Todas as modalidades</option>' + MODS.map(m=>`<option>${m}</option>`).join('');
-fMod.onchange = render; document.getElementById('fSexo').onchange = render;
+const $ = id => document.getElementById(id);
+$('fMod').innerHTML = '<option value="">Modalidades</option>' + MODS.map(m=>`<option>${m}</option>`).join('');
+['fPer','fMod','fSexo'].forEach(id=>$(id).onchange=render);
+
 
 function bars(el, entries, total, cor, order){
   if (order) entries = order.map(k=>[k, entries.find(e=>e[0]===k)?.[1]||0]);
   const mx = Math.max(1,...entries.map(e=>e[1]));
-  document.getElementById(el).innerHTML = entries.map(([k,n])=>`<div class="row"><div class="t"><span>${esc(k)}</span><span>${fmt(n)} · ${pct(n,total)}</span></div>
+  $(el).innerHTML = entries.map(([k,n])=>`<div class="row"><div class="t"><span>${esc(k)}</span><span>${fmt(n)} · ${pct(n,total)}</span></div>
     <div class="bar"><div style="width:${n/mx*100}%;background:${typeof cor==='function'?cor(k):cor}"></div></div></div>`).join('');
+  const top = [...entries].sort((a,b)=>b[1]-a[1])[0];
+  const t = $('t'+el.slice(1)); if (t) t.textContent = top && top[1] ? `${top[0]} · ${pct(top[1],total)}` : '';
 }
 
+let chartState = null;
 function render(){
-  const fm = fMod.value, fs = document.getElementById('fSexo').value;
-  const rows = ALL.filter(r=>(!fm||r.m===fm)&&(!fs||r.s===fs));
-  const N = rows.length;
-  // eixo de datas contínuo
-  const ds = ALL.map(r=>r.d).sort(); const days=[];
-  for (let t=new Date(ds[0]+'T12:00'); t<=new Date(ds[ds.length-1]+'T12:00'); t.setDate(t.getDate()+1)) days.push(t.toISOString().slice(0,10));
+  const per = +$('fPer').value, fm = $('fMod').value, fs = $('fSexo').value;
+  const days = per ? ALL_DAYS.slice(-per) : ALL_DAYS;
+  const dset = new Set(days);
+  const rows = ALL.filter(r=>dset.has(r.d)&&(!fm||r.m===fm)&&(!fs||r.s===fs));
+  const N = rows.length, mob = isMobile();
   const byDay = count(rows,r=>r.d);
   const peak = sorted(byDay)[0] || ['',0];
-  const ativos = byDay.size;
-  const ultimo = days[days.length-1], d7 = days.slice(-7);
+  const ativos = byDay.size, ultimo = ALL_DAYS[ALL_DAYS.length-1], d7 = ALL_DAYS.slice(-7);
   const ult7 = rows.filter(r=>d7.includes(r.d)).length;
   const fem = rows.filter(r=>r.s==='F').length;
   const idades = rows.map(r=>r.i).filter(x=>x!=null).sort((a,b)=>a-b);
   const med = idades.length ? idades[Math.floor(idades.length/2)] : null;
   const pcd = rows.filter(r=>r.m.includes('PCD')).length;
+  const perTxt = per ? `últimos ${per} dias` : 'todo o período';
   const kp = (l,v,s)=>`<div class="card"><div class="lbl">${l}</div><div class="big">${v}</div><div class="sub">${s}</div></div>`;
-  document.getElementById('kpis').innerHTML =
-    kp('Kits vendidos', fmt(N), fm||'todas as modalidades') +
-    kp('Média por dia', (N/Math.max(1,ativos)).toFixed(1).replace('.',','), `${ativos} dias com venda`) +
-    kp('Melhor dia', fmt(peak[1]), peak[0]?'em '+fd(peak[0]):'—') +
+  $('kpis').innerHTML =
+    kp('Kits vendidos', fmt(N), (fm||'todas as modalidades')+' · '+perTxt) +
     kp('Últimos 7 dias', fmt(ult7), `até ${fd(ultimo)}`) +
+    kp('Melhor dia', fmt(peak[1]), peak[0]?'em '+fd(peak[0]):'—') +
+    kp('Média por dia', (N/Math.max(1,ativos)).toFixed(1).replace('.',','), `${ativos} dias com venda`) +
     kp('Mulheres', pct(fem,N), `${fmt(fem)} atletas`) +
     kp('Inscrições PCD', fmt(pcd), pct(pcd,N)+' do total') +
     kp('Idade mediana', med!=null?med+' anos':'—', 'na data da compra');
 
-  // gráfico: barras empilhadas por dia + linha acumulada
-  const showMods = fm ? [fm] : MODS;
-  document.getElementById('legend').innerHTML = showMods.map(m=>`<span><i style="background:${COR[m]}"></i>${m}</span>`).join('') +
-    '<span><i style="background:#0f172a;height:2px;vertical-align:3px"></i>Acumulado</span>';
-  const W = Math.max(640, document.getElementById('chart').clientWidth || 900), H=260, L=34, R=44, T=10, B=26;
-  const bw = (W-L-R)/days.length;
-  const maxD = Math.max(1,...days.map(d=>byDay.get(d)||0));
-  const yD = v => H-B-(v/maxD)*(H-T-B), yA = v => H-B-(v/Math.max(1,N))*(H-T-B);
-  let acc=0, svg='', line='';
-  [0,.5,1].forEach(f=>{ const v=Math.round(maxD*f), y=yD(v);
-    svg += `<line x1="${L}" x2="${W-R}" y1="${y}" y2="${y}" stroke="#eef0f3"/><text x="${L-6}" y="${y+3}" font-size="10" fill="#94a3b8" text-anchor="end">${v}</text>`;
-    svg += `<text x="${W-R+6}" y="${yA(Math.round(N*f))+3}" font-size="10" fill="#94a3b8">${fmt(Math.round(N*f))}</text>`; });
-  days.forEach((d,i)=>{
-    const x = L+i*bw; let y0 = H-B; const dayRows = rows.filter(r=>r.d===d);
-    showMods.forEach(m=>{ const n=dayRows.filter(r=>r.m===m).length; if(!n) return;
-      const h=(n/maxD)*(H-T-B); y0-=h; svg+=`<rect x="${x+bw*.12}" y="${y0}" width="${Math.max(1,bw*.76)}" height="${h}" fill="${COR[m]}"/>`; });
-    acc += dayRows.length; line += (i?'L':'M')+(x+bw/2).toFixed(1)+','+yA(acc).toFixed(1);
-    svg += `<rect class="hit" data-i="${i}" x="${x}" y="${T}" width="${bw}" height="${H-T-B}" fill="transparent"/>`;
-    if (i%7===0) svg += `<text x="${x+bw/2}" y="${H-8}" font-size="10" fill="#94a3b8" text-anchor="middle">${fd(d)}</text>`;
-  });
-  svg += `<path d="${line}" fill="none" stroke="#0f172a" stroke-width="2"/>`;
-  const ch = document.getElementById('chart');
-  ch.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block">${svg}</svg>`;
-  const tip = document.getElementById('tip'); let cum=[]; acc=0; days.forEach(d=>{acc+=byDay.get(d)||0; cum.push(acc);});
-  ch.querySelectorAll('.hit').forEach(el=>{
-    el.onmousemove = e=>{ const i=+el.dataset.i, d=days[i], dr=rows.filter(r=>r.d===d);
-      tip.innerHTML = `<b>${fd(d)}/${d.slice(0,4)}</b> — ${fmt(dr.length)} kits<br>` +
-        showMods.map(m=>{const n=dr.filter(r=>r.m===m).length; return n?`${m}: ${n}<br>`:'';}).join('') + `Acumulado: ${fmt(cum[i])}`;
-      tip.style.display='block'; tip.style.left=Math.min(e.clientX+12, innerWidth-180)+'px'; tip.style.top=(e.clientY+12)+'px'; };
-    el.onmouseleave = ()=>tip.style.display='none';
-  });
-
-  document.getElementById('cupons').innerHTML = CUPONS_DESTAQUE.map(c=>{
+  // ---- cupons de parceiros ----
+  $('cupons').innerHTML = CUPONS_DESTAQUE.map(c=>{
     const cr = rows.filter(r=>r.k===c), n = cr.length;
-    if (!n) return `<div class="card"><div class="lbl">${esc(c)}</div><div class="big">0</div><div class="sub">nenhum uso no período</div></div>`;
+    if (!n) return `<div class="card cupom"><div class="lbl">${esc(c)}</div><div class="big">0</div><div class="sub">nenhum uso no período</div></div>`;
     const dd = cr.map(r=>r.d).sort(), d7u = cr.filter(r=>d7.includes(r.d)).length;
     const porDia = count(cr,r=>r.d), mxd = Math.max(...porDia.values());
     const spark = days.filter(d=>d>=dd[0]).map(d=>{ const v=porDia.get(d)||0;
       return `<div title="${fd(d)}: ${v}" style="flex:1;max-width:14px;min-width:2px;background:${v?'var(--c4)':'var(--track)'};height:${v?Math.max(4,v/mxd*40):2}px;border-radius:2px"></div>`; }).join('');
     const pm = sorted(count(cr,r=>r.m)).map(([m,v])=>`${esc(m)}: <b>${v}</b>`).join(' · ');
-    return `<div class="card" style="box-shadow:none;border-left:4px solid var(--c4)">
+    return `<div class="card cupom">
       <div class="lbl">${esc(c)}</div>
       <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-end">
         <div><div class="big">${fmt(n)}</div><div class="sub">usos · ${pct(n,N)} dos kits</div></div>
         <div><div class="big" style="font-size:20px">${fmt(d7u)}</div><div class="sub">nos últimos 7 dias</div></div>
       </div>
-      <div style="display:flex;align-items:flex-end;gap:2px;height:42px;margin:12px 0 6px">${spark}</div>
+      <div class="spark">${spark}</div>
       <div class="sub" style="font-weight:500">1º uso ${fd(dd[0])} · último ${fd(dd[dd.length-1])}<br>${pm}</div></div>`;
   }).join('');
 
+  // ---- gráfico ----
+  const showMods = fm ? [fm] : MODS;
+  $('legend').innerHTML = showMods.map(m=>`<span><i style="background:${COR[m]}"></i>${m}</span>`).join('') +
+    '<span><i style="background:#0f172a;height:2px;vertical-align:3px"></i>Acumulado</span>';
+  const box = $('chart');
+  const W = Math.max(280, box.clientWidth || 900), H = mob ? 230 : 260;
+  const L = mob ? 26 : 34, R = mob ? 34 : 44, T = 10, B = 24;
+  const bw = (W-L-R)/days.length;
+  const maxD = Math.max(1,...days.map(d=>byDay.get(d)||0));
+  const yD = v => H-B-(v/maxD)*(H-T-B), yA = v => H-B-(v/Math.max(1,N))*(H-T-B);
+  const fs10 = mob ? 9.5 : 10;
+  const step = Math.max(1, Math.ceil(days.length / (mob ? 5 : 12)));
+  let acc=0, svg='', line='';
+  const cum=[];
+  [0,.5,1].forEach(f=>{ const v=Math.round(maxD*f), y=yD(v);
+    svg += `<line x1="${L}" x2="${W-R}" y1="${y}" y2="${y}" stroke="#eef0f3"/><text x="${L-5}" y="${y+3}" font-size="${fs10}" fill="#94a3b8" text-anchor="end">${v}</text>`;
+    svg += `<text x="${W-R+5}" y="${yA(Math.round(N*f))+3}" font-size="${fs10}" fill="#94a3b8">${fmt(Math.round(N*f))}</text>`; });
+  days.forEach((d,i)=>{
+    const x = L+i*bw; let y0 = H-B; const dayRows = rows.filter(r=>r.d===d);
+    showMods.forEach(m=>{ const n=dayRows.filter(r=>r.m===m).length; if(!n) return;
+      const h=(n/maxD)*(H-T-B); y0-=h; svg+=`<rect x="${x+bw*.12}" y="${y0}" width="${Math.max(1,bw*.76)}" height="${h}" fill="${COR[m]}"/>`; });
+    acc += dayRows.length; cum.push(acc); line += (i?'L':'M')+(x+bw/2).toFixed(1)+','+yA(acc).toFixed(1);
+    if (i%step===0) svg += `<text x="${x+bw/2}" y="${H-7}" font-size="${fs10}" fill="#94a3b8" text-anchor="middle">${fd(d)}</text>`;
+  });
+  svg += `<path d="${line}" fill="none" stroke="#0f172a" stroke-width="2"/><rect id="hl" y="${T}" height="${H-T-B}" fill="rgba(15,23,42,.06)" width="0"/>`;
+  box.innerHTML = `<div class="tip" id="tip"></div><svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block">${svg}</svg>`;
+  chartState = { days, rows, showMods, cum, L, bw, W };
+
+  // ---- perfil ----
   bars('bMod', sorted(count(rows,r=>r.m)), N, k=>COR[k]);
   bars('bComo', sorted(count(rows,r=>r.c)), N, 'var(--c2)');
   bars('bOrig', sorted(count(rows,r=>r.o)), N, 'var(--c3)');
@@ -185,14 +247,52 @@ function render(){
   bars('bCamisa', sorted(count(rows,r=>r.t)), N, 'var(--c5)');
   const SEM=['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
   bars('bSemana', [...count(rows,r=>SEM[new Date(r.d+'T12:00').getDay()])], N, 'var(--c2)', SEM.slice(1).concat('Domingo'));
-  const per = h => h<6?'Madrugada (0–5h)':h<12?'Manhã (6–11h)':h<18?'Tarde (12–17h)':'Noite (18–23h)';
-  bars('bHora', [...count(rows,r=>per(r.h))], N, 'var(--c3)', ['Manhã (6–11h)','Tarde (12–17h)','Noite (18–23h)','Madrugada (0–5h)']);
+  const perH = h => h<6?'Madrugada (0–5h)':h<12?'Manhã (6–11h)':h<18?'Tarde (12–17h)':'Noite (18–23h)';
+  bars('bHora', [...count(rows,r=>perH(r.h))], N, 'var(--c3)', ['Manhã (6–11h)','Tarde (12–17h)','Noite (18–23h)','Madrugada (0–5h)']);
 
+  // ---- tabela (no celular, as 3 modalidades PCD viram uma coluna) ----
+  const cols = fm ? [fm] : mob ? ['5 km','10 km','PCD'] : MODS;
+  const inCol = (r,c) => c==='PCD' ? r.m.includes('PCD') : r.m===c;
   let a=0; const linhas = days.filter(d=>byDay.has(d)).map(d=>{ const dr=rows.filter(r=>r.d===d); a+=dr.length;
-    return `<tr><td>${fd(d)}/${d.slice(0,4)}</td>${showMods.map(m=>`<td>${dr.filter(r=>r.m===m).length||'—'}</td>`).join('')}<td><b>${dr.length}</b></td><td style="color:#64748b">${fmt(a)}</td></tr>`; });
-  document.getElementById('tabela').innerHTML = `<table><thead><tr><th>Data</th>${showMods.map(m=>`<th>${m}</th>`).join('')}<th>Total</th><th>Acumulado</th></tr></thead><tbody>${linhas.reverse().join('')}</tbody></table>`;
+    return `<tr><td>${fd(d)}${mob?'':'/'+d.slice(0,4)}</td>${cols.map(c=>`<td>${dr.filter(r=>inCol(r,c)).length||'—'}</td>`).join('')}<td><b>${dr.length}</b></td><td style="color:#64748b">${fmt(a)}</td></tr>`; });
+  $('tTab').textContent = `${linhas.length} dias com venda`;
+  $('tabela').innerHTML = `<table><thead><tr><th>Data</th>${cols.map(c=>`<th>${c}</th>`).join('')}<th>Total</th><th>${mob?'Acum.':'Acumulado'}</th></tr></thead><tbody>${linhas.reverse().join('')}</tbody></table>`;
 }
-render(); addEventListener('resize', ()=>{ clearTimeout(window._rz); window._rz=setTimeout(render,150); });
+
+// tooltip do gráfico: mouse e toque
+function showTip(e){
+  if (!chartState) return;
+  const { days, rows, showMods, cum, L, bw, W } = chartState;
+  const box = $('chart'), rect = box.getBoundingClientRect(), scale = W/rect.width;
+  const i = Math.floor(((e.clientX-rect.left)*scale - L)/bw);
+  const tip = $('tip'), hl = document.getElementById('hl');
+  if (i<0 || i>=days.length){ tip.style.display='none'; if(hl) hl.setAttribute('width',0); return; }
+  const d = days[i], dr = rows.filter(r=>r.d===d);
+  tip.innerHTML = `<b>${fd(d)}/${d.slice(0,4)}</b> — ${fmt(dr.length)} kits<br>` +
+    showMods.map(m=>{const n=dr.filter(r=>r.m===m).length; return n?`${m}: ${n}<br>`:'';}).join('') + `Acumulado: ${fmt(cum[i])}`;
+  tip.style.display='block';
+  const x = (L+i*bw+bw/2)/scale, tw = tip.offsetWidth;
+  tip.style.left = Math.min(Math.max(0, x - tw/2), rect.width - tw) + 'px';
+  tip.style.top = '-6px';
+  if (hl){ hl.setAttribute('x', L+i*bw); hl.setAttribute('width', bw); }
+}
+const chartEl = $('chart');
+chartEl.addEventListener('pointermove', showTip);
+chartEl.addEventListener('pointerdown', showTip);
+chartEl.addEventListener('pointerleave', e=>{ if(e.pointerType==='mouse'){ $('tip').style.display='none'; const hl=document.getElementById('hl'); if(hl) hl.setAttribute('width',0);} });
+document.addEventListener('pointerdown', e=>{ if(!chartEl.contains(e.target)){ $('tip').style.display='none'; } });
+
+// destaca a seção visível no menu de atalhos (celular)
+const links = [...document.querySelectorAll('#jump a')];
+const io = new IntersectionObserver(es=>es.forEach(en=>{ if(en.isIntersecting){
+  links.forEach(a=>a.classList.toggle('on', a.getAttribute('href')==='#'+en.target.id));
+  const on = links.find(a=>a.classList.contains('on')); if (on) on.scrollIntoView({inline:'center',block:'nearest'}); } }),
+  { rootMargin:'-45% 0px -50% 0px' });
+document.querySelectorAll('main section').forEach(s=>io.observe(s));
+
+render();
+let lastW = innerWidth;
+addEventListener('resize', ()=>{ if (innerWidth===lastW) return; lastW=innerWidth; clearTimeout(window._rz); window._rz=setTimeout(render,150); });
 </script>
 </body>
 </html>
