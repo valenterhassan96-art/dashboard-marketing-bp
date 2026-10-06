@@ -51,6 +51,10 @@
 <main>
   <div class="grid kpis" id="kpis"></div>
   <div class="card" style="margin-bottom:14px">
+    <div class="lbl">Cupons de parceiros — uso</div>
+    <div class="grid two" id="cupons" style="margin:0"></div>
+  </div>
+  <div class="card" style="margin-bottom:14px">
     <div class="lbl">Kits vendidos por dia, por modalidade — linha = acumulado</div>
     <div class="legend" id="legend"></div>
     <div id="chart"></div>
@@ -72,6 +76,9 @@
 <script src="dados.js"></script>
 <script>
 const ALL = window.BPRUN.inscricoes;
+// Cupons acompanhados no quadro "Cupons de parceiros". Para incluir outro,
+// acrescente o nome do cupom exatamente como aparece na Ticket Sports.
+const CUPONS_DESTAQUE = ['ALEXDASRESENHAS10'];
 const MODS = ['5 km','10 km','5 km PCD','5 km PCD Cadeirante','5 km PCD Visual'];
 const COR = {'5 km':'var(--c1)','10 km':'var(--c2)','5 km PCD':'var(--c3)','5 km PCD Cadeirante':'var(--c4)','5 km PCD Visual':'var(--c5)'};
 const fmt = n => n.toLocaleString('pt-BR');
@@ -150,6 +157,24 @@ function render(){
       tip.style.display='block'; tip.style.left=Math.min(e.clientX+12, innerWidth-180)+'px'; tip.style.top=(e.clientY+12)+'px'; };
     el.onmouseleave = ()=>tip.style.display='none';
   });
+
+  document.getElementById('cupons').innerHTML = CUPONS_DESTAQUE.map(c=>{
+    const cr = rows.filter(r=>r.k===c), n = cr.length;
+    if (!n) return `<div class="card"><div class="lbl">${esc(c)}</div><div class="big">0</div><div class="sub">nenhum uso no período</div></div>`;
+    const dd = cr.map(r=>r.d).sort(), d7u = cr.filter(r=>d7.includes(r.d)).length;
+    const porDia = count(cr,r=>r.d), mxd = Math.max(...porDia.values());
+    const spark = days.filter(d=>d>=dd[0]).map(d=>{ const v=porDia.get(d)||0;
+      return `<div title="${fd(d)}: ${v}" style="flex:1;max-width:14px;min-width:2px;background:${v?'var(--c4)':'var(--track)'};height:${v?Math.max(4,v/mxd*40):2}px;border-radius:2px"></div>`; }).join('');
+    const pm = sorted(count(cr,r=>r.m)).map(([m,v])=>`${esc(m)}: <b>${v}</b>`).join(' · ');
+    return `<div class="card" style="box-shadow:none;border-left:4px solid var(--c4)">
+      <div class="lbl">${esc(c)}</div>
+      <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-end">
+        <div><div class="big">${fmt(n)}</div><div class="sub">usos · ${pct(n,N)} dos kits</div></div>
+        <div><div class="big" style="font-size:20px">${fmt(d7u)}</div><div class="sub">nos últimos 7 dias</div></div>
+      </div>
+      <div style="display:flex;align-items:flex-end;gap:2px;height:42px;margin:12px 0 6px">${spark}</div>
+      <div class="sub" style="font-weight:500">1º uso ${fd(dd[0])} · último ${fd(dd[dd.length-1])}<br>${pm}</div></div>`;
+  }).join('');
 
   bars('bMod', sorted(count(rows,r=>r.m)), N, k=>COR[k]);
   bars('bComo', sorted(count(rows,r=>r.c)), N, 'var(--c2)');
