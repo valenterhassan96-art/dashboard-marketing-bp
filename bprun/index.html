@@ -245,7 +245,8 @@ const META_KITS = 3000;
 // Cupons acompanhados no quadro "Cupons de parceiros". Para incluir outro,
 // acrescente o nome do cupom exatamente como aparece na Ticket Sports.
 const CUPONS_DESTAQUE = ['ALEXDASRESENHAS10'];
-let ALL = window.BPRUN.inscricoes;
+const BASE = window.BPRUN.inscricoes;
+let ALL = BASE;
 let EMAIL_INFO = null;
 const MODS = ['5 km','10 km','5 km PCD','5 km PCD Cadeirante','5 km PCD Visual'];
 const COR = {'5 km':'var(--c1)','10 km':'var(--c2)','5 km PCD':'var(--c3)','5 km PCD Cadeirante':'var(--c4)','5 km PCD Visual':'var(--c5)','PCD':'var(--c3)'};
@@ -484,19 +485,26 @@ const io = new IntersectionObserver(es=>es.forEach(en=>{ if(en.isIntersecting){
 document.querySelectorAll('.shell section').forEach(s=>io.observe(s));
 
 // junta as confirmações recebidas por e-mail depois do último relatório (sem repetir pedidos)
+const FEED_KEY = 'bprun_feed_v1';
+function aplicarFeed(feed){
+  const vistos = new Set(BASE.map(r=>r.p).filter(Boolean));
+  const novos = (feed.inscricoes||[]).filter(r=>r.p && !vistos.has(r.p))
+    .map(r=>({ d:r.d, h:r.h, m:r.m, s:null, i:null, o:null, k:null, c:r.c||'Não informado', t:r.t||'—', p:r.p }));
+  ALL = BASE.concat(novos); ALL_DAYS = calcDays();
+  EMAIL_INFO = { novos:novos.length, ate:feed.atualizado||'' };
+  setMeta();
+}
+// abre já com a última leitura guardada neste navegador, para o total não "voltar" ao relatório
+try { const c = localStorage.getItem(FEED_KEY); if (c) aplicarFeed(JSON.parse(c)); } catch(e){}
 async function carregarEmail(){
   if (!EMAIL_FEED_URL) return;
   try {
     const res = await fetch(EMAIL_FEED_URL, { cache:'no-store' });
-    const feed = await res.json();
-    const vistos = new Set(ALL.map(r=>r.p).filter(Boolean));
-    const novos = (feed.inscricoes||[]).filter(r=>r.p && !vistos.has(r.p))
-      .map(r=>({ d:r.d, h:r.h, m:r.m, s:null, i:null, o:null, k:null, c:r.c||'Não informado', t:r.t||'—', p:r.p }));
-    ALL = ALL.concat(novos); ALL_DAYS = calcDays();
-    EMAIL_INFO = { novos:novos.length, ate:feed.atualizado||'' };
-    if (chartState) chartState.sel = null;
-    setMeta(); render();
-  } catch(e){ console.warn('Feed de e-mail indisponível; mostrando só o relatório.', e); }
+    const txt = await res.text(), feed = JSON.parse(txt);
+    let antigo = null; try { antigo = localStorage.getItem(FEED_KEY); localStorage.setItem(FEED_KEY, txt); } catch(e){}
+    if (txt === antigo) return; // nada novo: não redesenha
+    aplicarFeed(feed); render();
+  } catch(e){ console.warn('Feed de e-mail indisponível; mostrando a última leitura.', e); }
 }
 render();
 carregarEmail();
