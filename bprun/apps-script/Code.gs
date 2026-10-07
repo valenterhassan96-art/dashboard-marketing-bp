@@ -79,9 +79,18 @@ function instalar() {
   Logger.log('Inscrições encontradas nos e-mails: ' + atualizar());
 }
 
-/** Endereço público que o painel lê (só dados anônimos). */
+/** Endereço público que o painel lê (só dados anônimos).
+ *  Se a última leitura tiver mais de 3 minutos, lê o Gmail na hora (não depende só do agendamento). */
 function doGet() {
   const arquivos = DriveApp.getFilesByName(ARQUIVO);
-  const conteudo = arquivos.hasNext() ? arquivos.next().getBlob().getDataAsString() : '{"inscricoes":[]}';
+  const arquivo = arquivos.hasNext() ? arquivos.next() : null;
+  if (!arquivo || Date.now() - arquivo.getLastUpdated().getTime() > 3 * 60 * 1000) {
+    const trava = LockService.getScriptLock();
+    if (trava.tryLock(20000)) {
+      try { atualizar(); } catch (e) { Logger.log('Falha ao ler o Gmail: ' + e); } finally { trava.releaseLock(); }
+    }
+  }
+  const atual = DriveApp.getFilesByName(ARQUIVO);
+  const conteudo = atual.hasNext() ? atual.next().getBlob().getDataAsString() : '{"inscricoes":[]}';
   return ContentService.createTextOutput(conteudo).setMimeType(ContentService.MimeType.JSON);
 }
