@@ -20,6 +20,7 @@
   .filters{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
   select{font:inherit;font-size:13px;font-weight:600;background:#fff;border:1.5px solid var(--line);border-radius:10px;padding:9px 10px;cursor:pointer;color:var(--ink);min-height:40px}
   nav.jump{display:none}
+  .alerta{font-size:12px;font-weight:700;color:#065f46;background:#f0fdf4;border:1.5px solid #86efac;padding:8px 12px;border-radius:99px;text-decoration:none;white-space:nowrap}
   main{max-width:1280px;margin:0 auto;padding:20px 16px 48px}
   section{scroll-margin-top:120px}
   .grid{display:grid;gap:14px;margin-bottom:14px}
@@ -63,6 +64,8 @@
     header{padding:10px 14px 0;gap:8px}
     header h1{font-size:17px}
     header p{font-size:11px}
+    .alerta{position:absolute;right:14px;top:max(10px,env(safe-area-inset-top));padding:6px 10px;font-size:11px}
+    header>div:first-child{padding-right:120px}
     .filters{margin:0;width:100%;display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
     select{font-size:12.5px;padding:8px 6px;width:100%;min-width:0}
     nav.jump{display:flex;gap:6px;overflow-x:auto;width:calc(100% + 28px);margin:0 -14px;padding:8px 14px 10px;scrollbar-width:none}
@@ -89,6 +92,7 @@
 <body>
 <header>
   <div><h1>BP RUN 2026 — Kits vendidos</h1><p id="meta"></p></div>
+  <a class="alerta" href="https://ntfy.sh/bprun2026-bompreco-alertas" target="_blank" rel="noopener" title="Notificação no celular a cada 100 inscritos">🔔 Alertas a cada 100</a>
   <div class="filters">
     <select id="fPer" aria-label="Período">
       <option value="">Período</option><option value="30">30 dias</option>
@@ -130,7 +134,10 @@
 </main>
 <script src="dados.js"></script>
 <script>
-const ALL = window.BPRUN.inscricoes;
+// Endereço do Apps Script que lê as confirmações de pedido no Gmail (vazio = só o CSV).
+const EMAIL_FEED_URL = '';
+let ALL = window.BPRUN.inscricoes;
+let EMAIL_INFO = null;
 // Cupons acompanhados no quadro "Cupons de parceiros". Para incluir outro,
 // acrescente o nome do cupom exatamente como aparece na Ticket Sports.
 const CUPONS_DESTAQUE = ['ALEXDASRESENHAS10'];
@@ -145,11 +152,14 @@ const sorted = m => [...m].sort((a,b)=>b[1]-a[1]);
 const isMobile = () => matchMedia('(max-width:640px)').matches;
 
 // eixo de datas contínuo do evento inteiro
-const ALL_DAYS = (()=>{ const ds=ALL.map(r=>r.d).sort(), out=[];
+const calcDays = () => { const ds=ALL.map(r=>r.d).sort(), out=[];
   for (let t=new Date(ds[0]+'T12:00'); t<=new Date(ds[ds.length-1]+'T12:00'); t.setDate(t.getDate()+1)) out.push(t.toISOString().slice(0,10));
-  return out; })();
-
-document.getElementById('meta').textContent = `Ticket Sports · evento 87490 · dados de ${window.BPRUN.gerado}`;
+  return out; };
+let ALL_DAYS = calcDays();
+const setMeta = () => { document.getElementById('meta').textContent =
+  `Ticket Sports · evento 87490 · relatório de ${window.BPRUN.gerado}` +
+  (EMAIL_INFO && EMAIL_INFO.novos ? ` + ${EMAIL_INFO.novos} via e-mail até ${EMAIL_INFO.ate}` : ''); };
+setMeta();
 const $ = id => document.getElementById(id);
 $('fMod').innerHTML = '<option value="">Modalidades</option>' + MODS.map(m=>`<option>${m}</option>`).join('');
 ['fPer','fMod','fSexo'].forEach(id=>$(id).onchange=render);
@@ -175,7 +185,7 @@ function render(){
   const peak = sorted(byDay)[0] || ['',0];
   const ativos = byDay.size, ultimo = ALL_DAYS[ALL_DAYS.length-1], d7 = ALL_DAYS.slice(-7);
   const ult7 = rows.filter(r=>d7.includes(r.d)).length;
-  const fem = rows.filter(r=>r.s==='F').length;
+  const comSexo = rows.filter(r=>r.s!=null), fem = comSexo.filter(r=>r.s==='F').length;
   const idades = rows.map(r=>r.i).filter(x=>x!=null).sort((a,b)=>a-b);
   const med = idades.length ? idades[Math.floor(idades.length/2)] : null;
   const pcd = rows.filter(r=>r.m.includes('PCD')).length;
@@ -186,7 +196,7 @@ function render(){
     kp('Últimos 7 dias', fmt(ult7), `até ${fd(ultimo)}`) +
     kp('Melhor dia', fmt(peak[1]), peak[0]?'em '+fd(peak[0]):'—') +
     kp('Média por dia', (N/Math.max(1,ativos)).toFixed(1).replace('.',','), `${ativos} dias com venda`) +
-    kp('Mulheres', pct(fem,N), `${fmt(fem)} atletas`) +
+    kp('Mulheres', pct(fem,comSexo.length), `${fmt(fem)} atletas`) +
     kp('Inscrições PCD', fmt(pcd), pct(pcd,N)+' do total') +
     kp('Idade mediana', med!=null?med+' anos':'—', 'na data da compra');
 
@@ -240,10 +250,11 @@ function render(){
   // ---- perfil ----
   bars('bMod', sorted(count(rows,r=>r.m)), N, k=>COR[k]);
   bars('bComo', sorted(count(rows,r=>r.c)), N, 'var(--c2)');
-  bars('bOrig', sorted(count(rows,r=>r.o)), N, 'var(--c3)');
-  bars('bCupom', sorted(count(rows,r=>r.k)).slice(0,8), N, 'var(--c4)');
+  const rO=rows.filter(r=>r.o!=null), rK=rows.filter(r=>r.k!=null), rI=rows.filter(r=>r.i!=null);
+  bars('bOrig', sorted(count(rO,r=>r.o)), rO.length, 'var(--c3)');
+  bars('bCupom', sorted(count(rK,r=>r.k)).slice(0,8), rK.length, 'var(--c4)');
   const faixa = i => i==null?'Não informado':i<18?'Até 17':i<25?'18–24':i<35?'25–34':i<45?'35–44':i<55?'45–54':i<65?'55–64':'65+';
-  bars('bIdade', [...count(rows,r=>faixa(r.i))], N, 'var(--c1)', ['Até 17','18–24','25–34','35–44','45–54','55–64','65+']);
+  bars('bIdade', [...count(rI,r=>faixa(r.i))], rI.length, 'var(--c1)', ['Até 17','18–24','25–34','35–44','45–54','55–64','65+']);
   bars('bCamisa', sorted(count(rows,r=>r.t)), N, 'var(--c5)');
   const SEM=['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
   bars('bSemana', [...count(rows,r=>SEM[new Date(r.d+'T12:00').getDay()])], N, 'var(--c2)', SEM.slice(1).concat('Domingo'));
@@ -290,7 +301,22 @@ const io = new IntersectionObserver(es=>es.forEach(en=>{ if(en.isIntersecting){
   { rootMargin:'-45% 0px -50% 0px' });
 document.querySelectorAll('main section').forEach(s=>io.observe(s));
 
+// junta as confirmações recebidas por e-mail depois do último relatório (sem repetir pedidos)
+async function carregarEmail(){
+  if (!EMAIL_FEED_URL) return;
+  try {
+    const res = await fetch(EMAIL_FEED_URL, { cache:'no-store' });
+    const feed = await res.json();
+    const vistos = new Set(ALL.map(r=>r.p).filter(Boolean));
+    const novos = (feed.inscricoes||[]).filter(r=>r.p && !vistos.has(r.p))
+      .map(r=>({ d:r.d, h:r.h, m:r.m, s:null, i:null, o:null, k:null, c:r.c||'Não informado', t:r.t||'—', p:r.p }));
+    ALL = ALL.concat(novos); ALL_DAYS = calcDays();
+    EMAIL_INFO = { novos:novos.length, ate:feed.atualizado||'' };
+    setMeta(); render();
+  } catch(e){ console.warn('Feed de e-mail indisponível; mostrando só o relatório.', e); }
+}
 render();
+carregarEmail();
 let lastW = innerWidth;
 addEventListener('resize', ()=>{ if (innerWidth===lastW) return; lastW=innerWidth; clearTimeout(window._rz); window._rz=setTimeout(render,150); });
 </script>

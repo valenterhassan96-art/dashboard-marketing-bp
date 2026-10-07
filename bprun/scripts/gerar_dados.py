@@ -3,7 +3,7 @@ do relatório de Inscritos exportado da Ticket Sports.
 
 Uso:  python3 bprun/scripts/gerar_dados.py Inscritos_87490_XXXX.csv
 """
-import csv, json, sys, os, unicodedata, collections as C
+import csv, json, sys, os, re, unicodedata, collections as C
 from datetime import date, datetime
 
 def norm(s):
@@ -44,13 +44,16 @@ def main(path):
             'c': (r.get('Como_ficou_sabendo') or '').strip() or 'Não informado',
             'k': cupom or 'Sem cupom',
             't': camisa.replace('Camiseta tradicional curta', 'Tradicional').replace('Baby look curta', 'Baby look') or '—',
+            'p': (r.get('N do Pedido') or '').strip(),
             'l': 'Manaus' if cidade.startswith('mana') and 'manacapuru' not in cidade else 'Outras cidades',
         })
     # cada registro é uma inscrição anônima: nenhum nome, documento, contato ou endereço sai daqui
+    m = re.search(r'_(\d{2})(\d{2})(\d{4})_(\d{2})(\d{2})\d{2}', os.path.basename(path))
+    gerado = f'{m[1]}/{m[2]}/{m[3]} {m[4]}:{m[5]}' if m else datetime.now().strftime('%d/%m/%Y %H:%M')
     dest = os.path.join(os.path.dirname(__file__), '..', 'dados.js')
     with open(dest, 'w', encoding='utf-8') as f:
         f.write('// Gerado por scripts/gerar_dados.py - apenas dados agregados/anônimos\n')
-        f.write('window.BPRUN = ' + json.dumps({'gerado': datetime.now().strftime('%d/%m/%Y %H:%M'),
+        f.write('window.BPRUN = ' + json.dumps({'gerado': gerado,
                                                 'fonte': os.path.basename(path), 'inscricoes': out},
                                                ensure_ascii=False, separators=(',', ':')) + ';\n')
     print(f'{len(out)} inscrições -> {os.path.normpath(dest)}')

@@ -6,6 +6,7 @@
       "firebase.json",
       "vercel.json",
       "scripts/**",
+      "apps-script/**",
       "**/.*",
       "**/*.csv"
     ],
