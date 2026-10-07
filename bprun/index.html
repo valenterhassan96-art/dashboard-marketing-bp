@@ -87,6 +87,10 @@
   .mini{background:var(--track);border-radius:16px;padding:12px 14px}
   .mini span{font-size:12px;color:var(--mut)}
   .mini b{display:flex;align-items:center;gap:6px;font-size:20px;font-weight:600;margin-top:8px}
+  .gk{background:var(--track);border-radius:16px;padding:14px 16px}
+  .gk span{font-size:12px;color:var(--mut)}
+  .gk b{display:flex;align-items:center;gap:8px;font-size:24px;font-weight:600;margin:6px 0 4px;letter-spacing:-.4px}
+  .gk small{font-size:11.5px;color:var(--mut)}
   .chip{font-size:9.5px;font-weight:600;padding:2px 6px;border-radius:99px;color:#fff;background:var(--c4)}
   .chip.dark{background:var(--dark)}
 
@@ -164,7 +168,7 @@
   <div class="top">
     <div class="brand"><i><svg width="16" height="16" viewBox="0 0 24 24" fill="#fff"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg></i>BP RUN 2026</div>
     <nav class="nav" id="jump">
-      <a href="#s-resumo" class="on">Resumo</a><a href="#s-vendas">Vendas</a><a href="#s-cupons">Cupons</a><a href="#s-perfil">Detalhes</a><a href="#s-tabela">Tabela</a>
+      <a href="#s-resumo" class="on">Resumo</a><a href="#s-vendas">Vendas</a><a href="#s-cresc">Crescimento</a><a href="#s-cupons">Cupons</a><a href="#s-perfil">Detalhes</a><a href="#s-tabela">Tabela</a>
     </nav>
     <div class="who">
       <span class="ic"><svg width="17" height="17" fill="none" stroke="#111827" stroke-width="1.8" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5"/></svg></span>
@@ -201,6 +205,12 @@
     </div>
   </section>
 
+  <section id="s-cresc" class="card" style="margin-bottom:16px">
+    <div class="ttl"><h2>Crescimento diário</h2><span class="r" style="font-size:12px;color:var(--mut)" id="crescSub"></span></div>
+    <div class="grid kpis" id="crescKpis" style="margin-bottom:14px"></div>
+    <div id="crescChart" style="position:relative"></div>
+  </section>
+
   <section id="s-cupons" class="card" style="margin-bottom:16px">
     <div class="ttl"><h2>Cupons de parceiros</h2></div>
     <div id="cupons" style="display:grid;gap:10px"></div>
@@ -231,7 +241,7 @@
 // Endereço do Apps Script que lê as confirmações de pedido no Gmail (vazio = só o CSV).
 const EMAIL_FEED_URL = 'https://script.google.com/macros/s/AKfycbxJS5Gr-g8wJmlguCY7TyJ5a5sbSC-7TL0JMTd5dJidZPz84ZBN1I3BeOpDcymJWQzvvg/exec';
 // Meta de kits do evento (medidor "Meta de inscritos").
-const META_KITS = 1500;
+const META_KITS = 3000;
 // Cupons acompanhados no quadro "Cupons de parceiros". Para incluir outro,
 // acrescente o nome do cupom exatamente como aparece na Ticket Sports.
 const CUPONS_DESTAQUE = ['ALEXDASRESENHAS10'];
@@ -359,6 +369,42 @@ function render(){
     <div class="mini"><span>Inscrições PCD</span><b>${fmt(pcd)} <span class="chip">${pct(pcd,N)}</span></b></div>
     <div class="mini"><span>10 km</span><b>${fmt(rows.filter(r=>r.m==='10 km').length)} <span class="chip dark">${pct(rows.filter(r=>r.m==='10 km').length,N)}</span></b></div>`;
 
+  // ---- crescimento diário (sobre todo o histórico, respeitando modalidade/sexo) ----
+  const porDiaBase = count(base,r=>r.d);
+  const serie = []; let acum = 0;
+  ALL_DAYS.forEach(d=>{ const n=porDiaBase.get(d)||0, antes=acum; acum+=n; serie.push({d,n,acc:acum,cresc:antes?n/antes:null}); });
+  const hoje = serie[serie.length-1], ontem = serie[serie.length-2]||{n:0,acc:0}, anteontem = serie[serie.length-3]||{n:0};
+  const hojeLocal = new Date(Date.now()-4*36e5).toISOString().slice(0,10); // Manaus (UTC−4)
+  const parcial = hoje.d === hojeLocal;
+  const ritmo7 = ult7/7, faltam = Math.max(0, META_KITS-acum);
+  const diasMeta = ritmo7 ? Math.ceil(faltam/ritmo7) : null;
+  const prev = diasMeta!=null ? new Date(new Date(hoje.d+'T12:00').getTime()+diasMeta*864e5) : null;
+  const gpct = v => v==null ? '—' : '+'+(v*100).toFixed(1).replace('.',',')+'%';
+  const gk = (lbl,val,bdg,sub)=>`<div class="gk"><span>${lbl}</span><b>${val}${bdg}</b><small>${sub}</small></div>`;
+  $('crescSub').textContent = `último dia com dados: ${fd(hoje.d)}`;
+  $('crescKpis').innerHTML =
+    gk(`Vendas em ${fd(hoje.d)}${parcial?' (parcial)':''}`, fmt(hoje.n), parcial?'<span class="badge flat">em andamento</span>':badge(hoje.n, ontem.n), `dia anterior: ${fmt(ontem.n)}`) +
+    gk(`Vendas em ${fd(ontem.d||hoje.d)}`, fmt(ontem.n), badge(ontem.n, anteontem.n), `dia anterior: ${fmt(anteontem.n)}`) +
+    gk('Crescimento do total no dia', gpct(hoje.cresc), '', `${fmt(ontem.acc)} → ${fmt(hoje.acc)} kits`) +
+    gk('Previsão para a meta', faltam? (prev? prev.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}) : '—') : 'Atingida', '',
+       faltam ? `faltam ${fmt(faltam)} · ritmo de ${ritmo7.toFixed(0)}/dia (7d)` : `${fmt(acum)} kits`);
+  // linha: crescimento % do total por dia (últimos 21 dias)
+  const ult = serie.slice(-21).filter(x=>x.cresc!=null);
+  const cbox = $('crescChart'), CW = Math.max(300, cbox.clientWidth||900), CH = mob?170:190, cl=44, cr=24, ct=18, cb=26;
+  const mxc = Math.max(0.01,...ult.map(x=>x.cresc));
+  const cx = i => cl + (CW-cl-cr)*(ult.length>1 ? i/(ult.length-1) : .5), cy = v => ct + (CH-ct-cb)*(1-v/mxc);
+  let cs = '';
+  [0,.5,1].forEach(f=>{ const v=mxc*f; cs+=`<line x1="${cl}" x2="${CW-cr}" y1="${cy(v)}" y2="${cy(v)}" stroke="#e5e7eb" stroke-dasharray="4 5"/><text x="${cl-8}" y="${cy(v)+4}" font-size="10.5" fill="#6b7280" text-anchor="end">${(v*100).toFixed(v*100<10?1:0).replace('.',',')}%</text>`; });
+  const pts = ult.map((x,i)=>`${cx(i).toFixed(1)},${cy(x.cresc).toFixed(1)}`);
+  if (pts.length) cs += `<path d="M${pts.join('L')} L${cx(ult.length-1)},${CH-cb} L${cx(0)},${CH-cb}Z" fill="#2f6bff" opacity=".08"/><path d="M${pts.join('L')}" fill="none" stroke="#2f6bff" stroke-width="2.5" stroke-linejoin="round"/>`;
+  const lst = Math.max(1, Math.ceil(ult.length/(mob?5:10)));
+  ult.forEach((x,i)=>{ const last=i===ult.length-1;
+    cs += `<circle cx="${cx(i)}" cy="${cy(x.cresc)}" r="${last?5:3}" fill="${last?'#7c5cff':'#2f6bff'}" stroke="#fff" stroke-width="${last?2:1}"><title>${fd(x.d)}: ${gpct(x.cresc)} (${x.n} kits)</title></circle>`;
+    if ((ult.length-1-i)%lst===0) cs += `<text x="${cx(i)}" y="${CH-7}" font-size="11" fill="#374151" text-anchor="middle">${fd(x.d)}</text>`;
+    if (last) cs += `<text x="${cx(i)-8}" y="${cy(x.cresc)-10}" font-size="11.5" font-weight="600" fill="#111827" text-anchor="end">${gpct(x.cresc)}</text>`; });
+  cbox.innerHTML = `<div style="font-size:12px;color:var(--mut);margin-bottom:4px">Quanto o total de kits cresceu a cada dia (últimos 21 dias)</div><svg viewBox="0 0 ${CW} ${CH}" width="100%" style="display:block">${cs}</svg>`;
+  const serieMap = new Map(serie.map((x,i)=>[x.d,{...x, ant:i?serie[i-1].n:0}]));
+
   // ---- cupons de parceiros ----
   $('cupons').innerHTML = CUPONS_DESTAQUE.map(c=>{
     const cr = rows.filter(r=>r.k===c), n = cr.length;
@@ -395,9 +441,9 @@ function render(){
   linhas = $('ord').value==='mais' ? linhas.sort((x,y)=>y.dr.length-x.dr.length) : linhas.reverse();
   const mxDia = Math.max(1,...linhas.map(l=>l.dr.length));
   const st = n => n>=mxDia*.6 ? ['#eaf7ef','#16a34a','Forte'] : n>=mxDia*.25 ? ['#e8efff','#2f6bff','Normal'] : ['#f4f5f7','#6b7280','Fraco'];
-  $('tabela').innerHTML = `<table><thead><tr><th>Data</th>${cols.map(c=>`<th>${c}</th>`).join('')}${mob?'':'<th>Ritmo</th>'}<th>Total</th><th>${mob?'Acum.':'Acumulado'}</th></tr></thead><tbody>${
+  $('tabela').innerHTML = `<table><thead><tr><th>Data</th>${cols.map(c=>`<th>${c}</th>`).join('')}${mob?'':'<th>Ritmo</th>'}<th>Total</th><th>${mob?'Δ dia':'vs dia ant.'}</th>${mob?'':'<th>Cresc. total</th>'}<th>${mob?'Acum.':'Acumulado'}</th></tr></thead><tbody>${
     linhas.map(l=>{ const [bg,co,tx]=st(l.dr.length);
-      return `<tr><td>${fd(l.d)}${mob?'':'/'+l.d.slice(0,4)}</td>${cols.map(c=>`<td>${l.dr.filter(r=>inCol(r,c)).length||'—'}</td>`).join('')}${mob?'':`<td><span class="st" style="background:${bg};color:${co}">${tx}</span></td>`}<td><b>${l.dr.length}</b></td><td style="color:#6b7280">${fmt(l.acc)}</td></tr>`; }).join('')
+      return `<tr><td>${fd(l.d)}${mob?'':'/'+l.d.slice(0,4)}</td>${cols.map(c=>`<td>${l.dr.filter(r=>inCol(r,c)).length||'—'}</td>`).join('')}${mob?'':`<td><span class="st" style="background:${bg};color:${co}">${tx}</span></td>`}<td><b>${l.dr.length}</b></td><td>${(()=>{ const sm=serieMap.get(l.d); return l.d===hojeLocal ? '<span class="badge flat">parcial</span>' : badge(sm?sm.n:l.dr.length, sm?sm.ant:0); })()}</td>${mob?'':`<td style="color:#16a34a;font-weight:500">${gpct((serieMap.get(l.d)||{}).cresc)}</td>`}<td style="color:#6b7280">${fmt((serieMap.get(l.d)||{}).acc ?? l.acc)}</td></tr>`; }).join('')
   }</tbody></table>`;
 }
 
