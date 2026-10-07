@@ -50,7 +50,7 @@
   .kpis{grid-template-columns:repeat(4,1fr)}
   .card{background:var(--card);border-radius:20px;padding:18px 20px;min-width:0;box-shadow:0 1px 2px rgba(17,24,39,.04)}
   .kpi{position:relative}
-  .kpi .lbl{font-size:13px;color:var(--mut);font-weight:400}
+  .kpi .lbl{font-size:13px;color:var(--mut);font-weight:400;padding-right:46px}
   .kpi .val{display:flex;align-items:center;gap:8px;margin:10px 0 12px}
   .kpi .val b{font-size:32px;font-weight:600;letter-spacing:-.8px;font-variant-numeric:tabular-nums}
   .kpi .foot{font-size:12px;color:var(--mut)}
@@ -154,7 +154,7 @@
     .kpi .ic{width:34px;height:34px;top:12px;right:12px}
     .kpi .ic svg{width:15px;height:15px}
     .kpi .val{flex-wrap:wrap;gap:4px;margin:8px 0}
-    .kpi.hero{grid-column:1/-1}
+    .kpi.hero,.kpi.hoje{grid-column:1/-1}
     .kpi.hero .val b{font-size:34px}
     .card{border-radius:18px;padding:15px}
     .det{grid-template-columns:1fr;gap:10px}
@@ -312,15 +312,21 @@ function render(){
   const ult7 = base.filter(r=>d7.includes(r.d)).length, ant7 = base.filter(r=>d7a.includes(r.d)).length;
   const totalAte7 = base.filter(r=>r.d<d7[0]).length;
 
+  // ---- vendas de hoje (horário de Manaus) x ontem até a mesma hora ----
+  const agoraM = new Date(Date.now()-4*36e5), diaHoje = agoraM.toISOString().slice(0,10), horaAgora = agoraM.getUTCHours();
+  const diaOntem = new Date(agoraM.getTime()-864e5).toISOString().slice(0,10);
+  const nHoje = base.filter(r=>r.d===diaHoje).length, rOntem = base.filter(r=>r.d===diaOntem), nOntem = rOntem.length;
+  const ontemAteAgora = rOntem.filter(r=>r.h<=horaAgora).length;
+
   // ---- destaques ----
   const kpi = (cls,ic,icBg,lbl,val,bdg,foot)=>`<div class="card kpi ${cls}"><span class="ic" style="background:${icBg}">${ic}</span>
     <div class="lbl">${lbl}</div><div class="val"><b>${val}</b>${bdg}</div><div class="foot">${foot}</div></div>`;
   const media = N/Math.max(1,ativos), media7 = ult7/7, mediaAnt = ant7/7;
   $('kpis').innerHTML =
     kpi('hero',ICON.cart,'#fff','Kits vendidos',fmt(N), per?'':badge(base.length,totalAte7), (EMAIL_INFO && EMAIL_INFO.novos ? `inclui <b>+${fmt(EMAIL_INFO.novos)}</b> confirmados por e-mail · ` : '') + (per?`${fm||'todas as modalidades'} · ${per} dias`:`7 dias atrás: <b>${fmt(totalAte7)}</b>`)) +
+    kpi('hoje',ICON.box,'var(--blue2)',`Vendas hoje · ${fd(diaHoje)}`,fmt(nHoje),badge(nHoje,ontemAteAgora),`ontem até ${horaAgora}h: <b>${fmt(ontemAteAgora)}</b> · ontem total: <b>${fmt(nOntem)}</b>`) +
     kpi('',ICON.users,'var(--dark)','Últimos 7 dias',fmt(ult7),badge(ult7,ant7),`7 dias anteriores: <b>${fmt(ant7)}</b>`) +
-    kpi('',ICON.box,'var(--blue2)','Melhor dia',fmt(peak[1]),'',peak[0]?`em <b>${fd(peak[0])}/${peak[0].slice(0,4)}</b>`:'—') +
-    kpi('',ICON.pulse,'var(--blue)','Média por dia (7d)',media7.toFixed(1).replace('.',','),badge(media7,mediaAnt),`média no período: <b>${media.toFixed(1).replace('.',',')}</b>`);
+    kpi('',ICON.pulse,'var(--blue)','Média por dia (7d)',media7.toFixed(1).replace('.',','),badge(media7,mediaAnt),`melhor dia: <b>${fmt(peak[1])}</b>${peak[0]?' em '+fd(peak[0]):''}`);
 
   // ---- gráfico de barras ----
   const agr = $('fAgr').value, semanal = agr==='semana' || (agr==='auto' && days.length>45);
