@@ -251,7 +251,7 @@ const EMAIL_FEED_URL = 'https://script.google.com/macros/s/AKfycbxJS5Gr-g8wJmlgu
 const META_KITS = 3000;
 // Cupons acompanhados no quadro "Cupons de parceiros". Para incluir outro,
 // acrescente o nome do cupom exatamente como aparece na Ticket Sports.
-const CUPONS_DESTAQUE = ['ALEXDASRESENHAS10'];
+const CUPONS_DESTAQUE = ['ALEXDASRESENHAS10', 'RADARDASCORRIDAS10'];
 const BASE = window.BPRUN.inscricoes;
 let ALL = BASE;
 let EMAIL_INFO = null;
@@ -443,7 +443,7 @@ function render(){
   bars('bComo', sorted(count(rows,r=>r.c)), N, 'var(--blue)');
   const rO=rows.filter(r=>r.o!=null), rK=rows.filter(r=>r.k!=null), rI=rows.filter(r=>r.i!=null);
   bars('bOrig', sorted(count(rO,r=>r.o)), rO.length, 'var(--dark)');
-  bars('bCupom', sorted(count(rK,r=>r.k)).slice(0,8), rK.length, 'var(--c4)');
+  bars('bCupom', sorted(count(rK,r=>r.k)), rK.length, 'var(--c4)');
   const faixa = i => i<18?'Até 17':i<25?'18–24':i<35?'25–34':i<45?'35–44':i<55?'45–54':i<65?'55–64':'65+';
   bars('bIdade', [...count(rI,r=>faixa(r.i))], rI.length, 'var(--blue2)', ['Até 17','18–24','25–34','35–44','45–54','55–64','65+']);
   bars('bCamisa', sorted(count(rows,r=>r.t)), N, 'var(--c5)');

@@ -22,6 +22,17 @@ def main(path):
     origem_map = {'app ticket sports': 'App Ticket Sports', 'novo-site': 'Site Ticket Sports', 'ticketsports': 'Site Ticket Sports',
                   'ig': 'Instagram', 'instagram': 'Instagram', 'fb': 'Facebook', 'emkt': 'E-mail marketing',
                   'emailrc': 'E-mail marketing', 'emailrc2': 'E-mail marketing'}
+    # nome do cupom: se todos que usam o título têm o MESMO código (cupom de parceiro, ex.: título "10" =
+    # código RADARDASCORRIDAS10), mostra o código; se cada um tem um código próprio (ex.: PCD150), mostra o título
+    codigos = C.defaultdict(set)
+    for r in rows:
+        tit = (r.get('Titulo cupom') or '').strip().upper()
+        if tit: codigos[tit].add((r.get('Codigo cupom') or '').strip().upper())
+    def nome_cupom(r):
+        tit = (r.get('Titulo cupom') or '').strip().upper()
+        if not tit: return 'Sem cupom'
+        cods = codigos[tit] - {''}
+        return next(iter(cods)) if len(cods) == 1 else tit
     hoje = date.today()
     out = []
     for r in rows:
@@ -33,7 +44,6 @@ def main(path):
             idade = None
         camisa = (r.get('CAMISETA AZUL  5K') or '').strip() or (r.get('CAMISETA VERMELHA  10K') or '').strip()
         cidade = norm(r.get('Cidade'))
-        cupom = (r.get('Titulo cupom') or '').strip().upper()
         out.append({
             'd': d.isoformat(),
             'h': int((r.get('Hora do pedido') or '0').split(':')[0] or 0),
@@ -42,7 +52,7 @@ def main(path):
             'i': idade,
             'o': origem_map.get(norm(r.get('Origem do Pedido')), 'Outros'),
             'c': (r.get('Como_ficou_sabendo') or '').strip() or 'Não informado',
-            'k': cupom or 'Sem cupom',
+            'k': nome_cupom(r),
             't': camisa.replace('Camiseta tradicional curta', 'Tradicional').replace('Baby look curta', 'Baby look') or '—',
             'p': (r.get('N do Pedido') or '').strip(),
             'l': 'Manaus' if cidade.startswith('mana') and 'manacapuru' not in cidade else 'Outras cidades',
