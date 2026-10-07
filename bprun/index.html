@@ -20,7 +20,6 @@
   .filters{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
   select{font:inherit;font-size:13px;font-weight:600;background:#fff;border:1.5px solid var(--line);border-radius:10px;padding:9px 10px;cursor:pointer;color:var(--ink);min-height:40px}
   nav.jump{display:none}
-  .alerta{font-size:12px;font-weight:700;color:#065f46;background:#f0fdf4;border:1.5px solid #86efac;padding:8px 12px;border-radius:99px;text-decoration:none;white-space:nowrap}
   main{max-width:1280px;margin:0 auto;padding:20px 16px 48px}
   section{scroll-margin-top:120px}
   .grid{display:grid;gap:14px;margin-bottom:14px}
@@ -64,8 +63,6 @@
     header{padding:10px 14px 0;gap:8px}
     header h1{font-size:17px}
     header p{font-size:11px}
-    .alerta{position:absolute;right:14px;top:max(10px,env(safe-area-inset-top));padding:6px 10px;font-size:11px}
-    header>div:first-child{padding-right:120px}
     .filters{margin:0;width:100%;display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
     select{font-size:12.5px;padding:8px 6px;width:100%;min-width:0}
     nav.jump{display:flex;gap:6px;overflow-x:auto;width:calc(100% + 28px);margin:0 -14px;padding:8px 14px 10px;scrollbar-width:none}
@@ -92,7 +89,6 @@
 <body>
 <header>
   <div><h1>BP RUN 2026 — Kits vendidos</h1><p id="meta"></p></div>
-  <a class="alerta" href="https://ntfy.sh/bprun2026-bompreco-alertas" target="_blank" rel="noopener" title="Notificação no celular a cada 100 inscritos">🔔 Alertas a cada 100</a>
   <div class="filters">
     <select id="fPer" aria-label="Período">
       <option value="">Período</option><option value="30">30 dias</option>

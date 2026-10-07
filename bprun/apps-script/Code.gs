@@ -13,9 +13,6 @@
 
 const BUSCA = 'from:naoresponda@ticketsports.com.br subject:("Pedido confirmado" "BP RUN 2026")';
 const ARQUIVO = 'bprun-confirmacoes-email.json';
-const PAINEL = 'https://bprun-2026.web.app';
-// Canal de avisos no app ntfy (quem assina recebe uma notificação a cada 100 inscritos).
-const CANAL_AVISOS = 'bprun2026-bompreco-alertas';
 
 const MODALIDADES = {
   'corrida 5km - publico geral': '5 km',
@@ -68,36 +65,7 @@ function atualizar() {
   const arquivos = DriveApp.getFilesByName(ARQUIVO);
   if (arquivos.hasNext()) arquivos.next().setContent(conteudo);
   else DriveApp.createFile(ARQUIVO, conteudo, MimeType.PLAIN_TEXT);
-  avisarMarco_(inscricoes);
   return inscricoes.length;
-}
-
-/** Total = último relatório publicado no painel + pedidos novos vistos nos e-mails. */
-function totalAtual_(inscricoes) {
-  const js = UrlFetchApp.fetch(PAINEL + '/dados.js', { muteHttpExceptions: true }).getContentText();
-  const base = JSON.parse(js.slice(js.indexOf('{'), js.lastIndexOf('}') + 1)).inscricoes;
-  const vistos = {};
-  base.forEach(function (r) { if (r.p) vistos[r.p] = true; });
-  return base.length + inscricoes.filter(function (r) { return !vistos[r.p]; }).length;
-}
-
-/** Manda notificação quando o total passa de um novo múltiplo de 100. */
-function avisarMarco_(inscricoes) {
-  let total;
-  try { total = totalAtual_(inscricoes); } catch (e) { Logger.log('Não consegui ler o painel: ' + e); return; }
-  const props = PropertiesService.getScriptProperties();
-  const marco = Math.floor(total / 100) * 100;
-  const ultimo = Number(props.getProperty('ultimoMarco') || 0);
-  if (!ultimo) { props.setProperty('ultimoMarco', String(marco)); return; } // 1ª execução: só registra
-  if (marco <= ultimo) return;
-  const n = total.toLocaleString('pt-BR');
-  UrlFetchApp.fetch('https://ntfy.sh/' + CANAL_AVISOS, {
-    method: 'post',
-    payload: 'Total acumulado: ' + n + ' kits vendidos. Toque para abrir o painel.',
-    headers: { Title: 'BP RUN 2026: ' + marco.toLocaleString('pt-BR') + ' inscritos!', Tags: 'runner,tada', Click: PAINEL },
-    muteHttpExceptions: true,
-  });
-  props.setProperty('ultimoMarco', String(marco));
 }
 
 /** Rode uma vez: autoriza o acesso, faz a primeira leitura e agenda a cada 15 minutos. */
