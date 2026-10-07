@@ -127,6 +127,8 @@
   td:first-child{text-align:left;font-weight:500}
   .scroll{max-height:440px;overflow:auto;-webkit-overflow-scrolling:touch}
   .st{display:inline-block;font-size:11px;font-weight:500;padding:3px 9px;border-radius:99px}
+  body.carregando .shell>section{visibility:hidden}
+  body.carregando .shell::after{content:"Atualizando com as vendas confirmadas…";display:block;text-align:center;color:var(--mut);font-size:14px;padding:80px 0}
   footer{font-size:11.5px;color:var(--soft);text-align:center;margin-top:20px;line-height:1.6}
 
   @media (max-width:1100px){ .kpis{grid-template-columns:1fr 1fr} .det{grid-template-columns:1fr 1fr} }
@@ -495,19 +497,27 @@ function aplicarFeed(feed){
   setMeta();
 }
 // abre já com a última leitura guardada neste navegador, para o total não "voltar" ao relatório
-try { const c = localStorage.getItem(FEED_KEY); if (c) aplicarFeed(JSON.parse(c)); } catch(e){}
+let temCache = false;
+try { const c = localStorage.getItem(FEED_KEY); if (c) { aplicarFeed(JSON.parse(c)); temCache = true; } } catch(e){}
 async function carregarEmail(){
   if (!EMAIL_FEED_URL) return;
   try {
     const res = await fetch(EMAIL_FEED_URL, { cache:'no-store' });
     const txt = await res.text(), feed = JSON.parse(txt);
     let antigo = null; try { antigo = localStorage.getItem(FEED_KEY); localStorage.setItem(FEED_KEY, txt); } catch(e){}
-    if (txt === antigo) return; // nada novo: não redesenha
-    aplicarFeed(feed); render();
+    if (txt === antigo && desenhado) return; // nada novo: não redesenha
+    aplicarFeed(feed); desenhar();
   } catch(e){ console.warn('Feed de e-mail indisponível; mostrando a última leitura.', e); }
 }
-render();
-carregarEmail();
+// 1ª visita (sem leitura guardada): espera os e-mails antes de mostrar números, por até 5 s
+let desenhado = false;
+function desenhar(){ desenhado = true; document.body.classList.remove('carregando'); render(); }
+if (temCache || !EMAIL_FEED_URL) { desenhar(); carregarEmail(); }
+else {
+  document.body.classList.add('carregando');
+  const limite = setTimeout(()=>{ if (!desenhado) desenhar(); }, 5000);
+  carregarEmail().finally(()=>{ clearTimeout(limite); if (!desenhado) desenhar(); });
+}
 let lastW = innerWidth;
 addEventListener('resize', ()=>{ if (innerWidth===lastW) return; lastW=innerWidth; clearTimeout(window._rz); window._rz=setTimeout(render,150); });
 </script>
