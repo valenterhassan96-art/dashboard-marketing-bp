@@ -56,7 +56,7 @@
   .kpi .foot{font-size:12px;color:var(--mut)}
   .kpi .foot b{color:var(--ink);font-weight:500}
   .kpi .ic{position:absolute;top:16px;right:16px;width:42px;height:42px;border-radius:50%;display:grid;place-items:center}
-  .kpi.hero{background:linear-gradient(160deg,#2f6bff 0%,#3d7bff 55%,#6f9bff 100%);color:#fff}
+  .kpi.hero{background:linear-gradient(160deg,#2f6bff 0%,#3d7bff 55%,#6f9bff 100%);color:#fff;transition:background .4s}
   .kpi.hero .lbl,.kpi.hero .foot,.kpi.hero .foot b{color:rgba(255,255,255,.9)}
   .badge{font-size:10.5px;font-weight:500;padding:3px 7px;border-radius:99px;white-space:nowrap}
   .badge.up{color:var(--up);background:var(--up-bg)}
@@ -255,6 +255,7 @@ const CUPONS_DESTAQUE = ['ALEXDASRESENHAS10'];
 const BASE = window.BPRUN.inscricoes;
 let ALL = BASE;
 let EMAIL_INFO = null;
+let completo = false; // vira true quando o total já inclui os e-mails (o cartão principal só fica azul aí)
 const MODS = ['5 km','10 km','5 km PCD','5 km PCD Cadeirante','5 km PCD Visual'];
 const COR = {'5 km':'var(--c1)','10 km':'var(--c2)','5 km PCD':'var(--c3)','5 km PCD Cadeirante':'var(--c4)','5 km PCD Visual':'var(--c5)','PCD':'var(--c3)'};
 const fmt = n => n.toLocaleString('pt-BR');
@@ -332,7 +333,7 @@ function render(){
     <div class="lbl">${lbl}</div><div class="val"><b>${val}</b>${bdg}</div><div class="foot">${foot}</div></div>`;
   const media = N/Math.max(1,ativos), media7 = ult7/7, mediaAnt = ant7/7;
   $('kpis').innerHTML =
-    kpi('hero',ICON.cart,'#fff','Kits vendidos',fmt(N), per?'':badge(base.length,totalAte7), (per?`${fm||'todas as modalidades'} · ${per} dias`:`7 dias atrás: <b>${fmt(totalAte7)}</b>`)) +
+    kpi(completo?'hero':'',ICON.cart,completo?'#fff':'var(--blue-soft)','Kits vendidos',fmt(N), per?'':badge(base.length,totalAte7), (per?`${fm||'todas as modalidades'} · ${per} dias`:`7 dias atrás: <b>${fmt(totalAte7)}</b>`)) +
     kpi('hoje',ICON.box,'var(--blue2)',`Vendas hoje · ${fd(diaHoje)}`,fmt(nHoje),badge(nHoje,ontemAteAgora),`ontem até ${horaAgora}h: <b>${fmt(ontemAteAgora)}</b> · ontem total: <b>${fmt(nOntem)}</b>`) +
     kpi('',ICON.users,'var(--dark)','Últimos 7 dias',fmt(ult7),badge(ult7,ant7),`7 dias anteriores: <b>${fmt(ant7)}</b>`) +
     kpi('',ICON.pulse,'var(--blue)','Média por dia (7d)',media7.toFixed(1).replace('.',','),badge(media7,mediaAnt),`melhor dia: <b>${fmt(peak[1])}</b>${peak[0]?' em '+fd(peak[0]):''}`);
@@ -511,6 +512,7 @@ function aplicarFeed(feed){
       k: r.dp==null ? null : !r.dp ? 'Sem cupom' : 'Com cupom — identificado no próximo relatório' }));
   ALL = BASE.concat(novos); ALL_DAYS = calcDays();
   EMAIL_INFO = { novos:novos.length, ate:feed.atualizado||'' };
+  completo = true;
   setMeta();
 }
 // abre já com a última leitura guardada neste navegador, para o total não "voltar" ao relatório
@@ -523,7 +525,7 @@ async function carregarEmail(){
     const res = await fetch(EMAIL_FEED_URL, { cache:'no-store' });
     const txt = await res.text(), feed = JSON.parse(txt);
     let antigo = null; try { antigo = localStorage.getItem(FEED_KEY); localStorage.setItem(FEED_KEY, txt); } catch(e){}
-    if (txt === antigo && desenhado) return; // nada novo: não redesenha
+    if (txt === antigo && desenhado && completo) return; // nada novo: não redesenha
     aplicarFeed(feed); desenhar();
   } catch(e){ console.warn('Feed de e-mail indisponível; mostrando a última leitura.', e); }
   finally { document.body.classList.remove('buscando'); setMeta(); }
@@ -531,17 +533,18 @@ async function carregarEmail(){
 // atualiza sozinho a cada 2 minutos com a página aberta, e ao tocar no ícone de atualizar
 setInterval(()=>{ if (!document.hidden) carregarEmail(); }, 120000);
 document.querySelector('.who .ic').onclick = () => carregarEmail();
-// 1ª visita (sem leitura guardada): espera os e-mails antes de mostrar números, por até 5 s
+// 1ª visita (sem leitura guardada): espera os e-mails antes de mostrar números, por até 1 s
 let desenhado = false;
 function desenhar(){ desenhado = true; document.body.classList.remove('carregando'); render(); }
+if (!EMAIL_FEED_URL) completo = true;
 if (temCache || !EMAIL_FEED_URL) { desenhar(); carregarEmail(); }
 else {
   document.body.classList.add('carregando');
   const esq = (hero)=>`<div class="card kpi ${hero?'hero':''}"><div class="sk" style="width:45%;height:13px"></div>
     <div class="sk" style="width:60%;height:34px;margin:14px 0 12px"></div><div class="sk" style="width:75%;height:11px"></div></div>`;
-  $('kpis').innerHTML = esq(1)+esq()+esq()+esq();
+  $('kpis').innerHTML = esq()+esq()+esq()+esq();
   $('meta').textContent = 'Carregando as vendas mais recentes…';
-  const limite = setTimeout(()=>{ if (!desenhado) desenhar(); }, 5000);
+  const limite = setTimeout(()=>{ if (!desenhado) desenhar(); }, 1000);
   carregarEmail().finally(()=>{ clearTimeout(limite); if (!desenhado) desenhar(); });
 }
 let lastW = innerWidth;

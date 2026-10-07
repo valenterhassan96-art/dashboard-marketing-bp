@@ -1,7 +1,7 @@
 /**
  * BP RUN — leitor das confirmações de pedido da Ticket Sports no Gmail.
  *
- * A cada 15 minutos, procura no Gmail os e-mails "Pedido confirmado: ... - BP RUN 2026",
+ * A cada 1 minuto, procura no Gmail os e-mails "Pedido confirmado: ... - BP RUN 2026",
  * extrai só dados anônimos (data/hora do pagamento, modalidade, camiseta,
  * "como ficou sabendo", % de desconto e o número do pedido) e guarda num arquivo do seu Drive.
  * O painel (bprun-2026.web.app) lê esse resultado pelo endereço do app da web.
@@ -30,13 +30,25 @@ function texto_(s) {
   return String(s || '').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
 }
 
-/** Lê os e-mails e regrava o arquivo com todas as inscrições encontradas. */
+function ler_() {
+  const arquivos = DriveApp.getFilesByName(ARQUIVO);
+  if (!arquivos.hasNext()) return { arquivo: null, dados: { inscricoes: [], lidos: [] } };
+  const arquivo = arquivos.next();
+  try { const d = JSON.parse(arquivo.getBlob().getDataAsString()); d.lidos = d.lidos || []; return { arquivo: arquivo, dados: d }; }
+  catch (e) { return { arquivo: arquivo, dados: { inscricoes: [], lidos: [] } }; }
+}
+
+/** Lê só os e-mails ainda não lidos (os mais novos vêm primeiro) e acrescenta ao arquivo. */
 function atualizar() {
-  const inscricoes = [];
+  const atual = ler_(), inscricoes = atual.dados.inscricoes, lidos = {};
+  atual.dados.lidos.forEach(function (id) { lidos[id] = true; });
   for (let inicio = 0; ; inicio += 100) {
     const threads = GmailApp.search(BUSCA, inicio, 100);
     if (!threads.length) break;
+    let novosNaPagina = 0;
     threads.forEach(function (t) {
+      if (lidos[t.getId()]) return;
+      lidos[t.getId()] = true; novosNaPagina++;
       t.getMessages().forEach(function (msg) {
         const pedido = (msg.getSubject().match(/Pedido confirmado:\s*(\d+)/) || [])[1];
         if (!pedido) return;
@@ -60,37 +72,28 @@ function atualizar() {
         });
       });
     });
-    if (threads.length < 100) break;
+    if (threads.length < 100 || !novosNaPagina) break; // página sem novidade: o resto já foi lido
   }
   const conteudo = JSON.stringify({
     atualizado: Utilities.formatDate(new Date(), 'America/Manaus', 'dd/MM HH:mm'),
     inscricoes: inscricoes,
+    lidos: Object.keys(lidos),
   });
-  const arquivos = DriveApp.getFilesByName(ARQUIVO);
-  if (arquivos.hasNext()) arquivos.next().setContent(conteudo);
+  if (atual.arquivo) atual.arquivo.setContent(conteudo);
   else DriveApp.createFile(ARQUIVO, conteudo, MimeType.PLAIN_TEXT);
   return inscricoes.length;
 }
 
-/** Rode uma vez: autoriza o acesso, faz a primeira leitura e agenda a cada 15 minutos. */
+/** Rode uma vez: autoriza o acesso, faz a primeira leitura e agenda a cada 1 minuto. */
 function instalar() {
   ScriptApp.getProjectTriggers().forEach(function (t) { ScriptApp.deleteTrigger(t); });
-  ScriptApp.newTrigger('atualizar').timeBased().everyMinutes(15).create();
+  ScriptApp.newTrigger('atualizar').timeBased().everyMinutes(1).create();
   Logger.log('Inscrições encontradas nos e-mails: ' + atualizar());
 }
 
-/** Endereço público que o painel lê (só dados anônimos).
- *  Se a última leitura tiver mais de 3 minutos, lê o Gmail na hora (não depende só do agendamento). */
+/** Endereço público que o painel lê (só dados anônimos). Responde na hora com a última leitura. */
 function doGet() {
-  const arquivos = DriveApp.getFilesByName(ARQUIVO);
-  const arquivo = arquivos.hasNext() ? arquivos.next() : null;
-  if (!arquivo || Date.now() - arquivo.getLastUpdated().getTime() > 3 * 60 * 1000) {
-    const trava = LockService.getScriptLock();
-    if (trava.tryLock(20000)) {
-      try { atualizar(); } catch (e) { Logger.log('Falha ao ler o Gmail: ' + e); } finally { trava.releaseLock(); }
-    }
-  }
-  const atual = DriveApp.getFilesByName(ARQUIVO);
-  const conteudo = atual.hasNext() ? atual.next().getBlob().getDataAsString() : '{"inscricoes":[]}';
+  const d = ler_().dados;
+  const conteudo = JSON.stringify({ atualizado: d.atualizado || '', inscricoes: d.inscricoes || [] });
   return ContentService.createTextOutput(conteudo).setMimeType(ContentService.MimeType.JSON);
 }
