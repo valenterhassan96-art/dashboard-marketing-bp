@@ -304,7 +304,7 @@ function render(){
     <div class="lbl">${lbl}</div><div class="val"><b>${val}</b>${bdg}</div><div class="foot">${foot}</div></div>`;
   const media = N/Math.max(1,ativos), media7 = ult7/7, mediaAnt = ant7/7;
   $('kpis').innerHTML =
-    kpi('hero',ICON.cart,'#fff','Kits vendidos',fmt(N), per?'':badge(base.length,totalAte7), per?`${fm||'todas as modalidades'} · ${per} dias`:`7 dias atrás: <b>${fmt(totalAte7)}</b>`) +
+    kpi('hero',ICON.cart,'#fff','Kits vendidos',fmt(N), per?'':badge(base.length,totalAte7), (EMAIL_INFO && EMAIL_INFO.novos ? `inclui <b>+${fmt(EMAIL_INFO.novos)}</b> confirmados por e-mail · ` : '') + (per?`${fm||'todas as modalidades'} · ${per} dias`:`7 dias atrás: <b>${fmt(totalAte7)}</b>`)) +
     kpi('',ICON.users,'var(--dark)','Últimos 7 dias',fmt(ult7),badge(ult7,ant7),`7 dias anteriores: <b>${fmt(ant7)}</b>`) +
     kpi('',ICON.box,'var(--blue2)','Melhor dia',fmt(peak[1]),'',peak[0]?`em <b>${fd(peak[0])}/${peak[0].slice(0,4)}</b>`:'—') +
     kpi('',ICON.pulse,'var(--blue)','Média por dia (7d)',media7.toFixed(1).replace('.',','),badge(media7,mediaAnt),`média no período: <b>${media.toFixed(1).replace('.',',')}</b>`);
