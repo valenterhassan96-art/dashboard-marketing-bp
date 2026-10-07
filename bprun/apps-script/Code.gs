@@ -23,7 +23,7 @@ const MODALIDADES = {
 };
 
 function norm_(s) {
-  return String(s || '').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  return String(s || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 
 function texto_(s) {
