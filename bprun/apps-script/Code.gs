@@ -3,7 +3,7 @@
  *
  * A cada 15 minutos, procura no Gmail os e-mails "Pedido confirmado: ... - BP RUN 2026",
  * extrai só dados anônimos (data/hora do pagamento, modalidade, camiseta,
- * "como ficou sabendo" e o número do pedido) e guarda num arquivo do seu Drive.
+ * "como ficou sabendo", % de desconto e o número do pedido) e guarda num arquivo do seu Drive.
  * O painel (bprun-2026.web.app) lê esse resultado pelo endereço do app da web.
  * Nenhum nome, CPF, e-mail ou telefone sai daqui.
  *
@@ -44,6 +44,10 @@ function atualizar() {
         const pg = html.match(/Data e hora do pagamento:\s*<\/b>\s*(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):/);
         const data = pg ? pg[3] + '-' + pg[2] + '-' + pg[1] : Utilities.formatDate(msg.getDate(), 'America/Manaus', 'yyyy-MM-dd');
         const hora = pg ? Number(pg[4]) : Number(Utilities.formatDate(msg.getDate(), 'America/Manaus', 'H'));
+        // o e-mail não traz o nome do cupom, só o valor do desconto: guardamos o % para identificar o cupom
+        const reais = function (re) { const m = html.match(re); return m ? Number(m[1].replace(/\./g, '').replace(',', '.')) : 0; };
+        const desconto = reais(/Desconto:\s*R\$\s*([\d.,]+)/), total = reais(/Total:\s*R\$\s*([\d.,]+)/);
+        const descPct = desconto && (desconto + total) ? Math.round(desconto / (desconto + total) * 100) : 0;
         // um pedido pode ter mais de um inscrito: cada bloco começa em "Nome do inscrito"
         html.split(/Nome do inscrito/).slice(1).forEach(function (bloco) {
           const cat = texto_((bloco.match(/<b>Categoria<\/b><\/td>\s*<td[^>]*>([^<]+)</) || [])[1]);
@@ -52,7 +56,7 @@ function atualizar() {
             .replace('Camiseta tradicional curta', 'Tradicional').replace('Baby look curta', 'Baby look');
           const como = texto_((bloco.match(/Como ficou sabendo[^<]*<\/b><\/p>\s*<p>([^<]+)</) || [])[1])
             .replace('ticketsports.com.br', 'ticketsportscombr');
-          inscricoes.push({ d: data, h: hora, m: MODALIDADES[norm_(cat)] || cat, t: camisa || '—', c: como || 'Não informado', p: pedido });
+          inscricoes.push({ d: data, h: hora, m: MODALIDADES[norm_(cat)] || cat, t: camisa || '—', c: como || 'Não informado', p: pedido, dp: descPct });
         });
       });
     });

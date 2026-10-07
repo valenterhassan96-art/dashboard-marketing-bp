@@ -247,6 +247,9 @@ const META_KITS = 3000;
 // Cupons acompanhados no quadro "Cupons de parceiros". Para incluir outro,
 // acrescente o nome do cupom exatamente como aparece na Ticket Sports.
 const CUPONS_DESTAQUE = ['ALEXDASRESENHAS10'];
+// O e-mail de confirmação só traz o % de desconto. Diga aqui qual cupom dá cada desconto
+// para os pedidos por e-mail entrarem na conta do cupom certo. Ex.: { 10: 'ALEXDASRESENHAS10' }
+const CUPOM_POR_DESCONTO = {};
 const BASE = window.BPRUN.inscricoes;
 let ALL = BASE;
 let EMAIL_INFO = null;
@@ -497,7 +500,8 @@ const FEED_KEY = 'bprun_feed_v1';
 function aplicarFeed(feed){
   const vistos = new Set(BASE.map(r=>r.p).filter(Boolean));
   const novos = (feed.inscricoes||[]).filter(r=>r.p && !vistos.has(r.p))
-    .map(r=>({ d:r.d, h:r.h, m:r.m, s:null, i:null, o:null, k:null, c:r.c||'Não informado', t:r.t||'—', p:r.p }));
+    .map(r=>({ d:r.d, h:r.h, m:r.m, s:null, i:null, o:null, c:r.c||'Não informado', t:r.t||'—', p:r.p,
+      k: r.dp==null ? null : !r.dp ? 'Sem cupom' : (CUPOM_POR_DESCONTO[r.dp] || `Desconto de ${r.dp}% (cupom não identificado)`) }));
   ALL = BASE.concat(novos); ALL_DAYS = calcDays();
   EMAIL_INFO = { novos:novos.length, ate:feed.atualizado||'' };
   setMeta();
