@@ -1,0 +1,23 @@
+# Publica o painel BP RUN no Firebase Hosting (site bprun-2026, projeto
+# agenda-mkt-b10cc) sempre que algo dentro de bprun/ muda.
+# Requer o segredo FIREBASE_SERVICE_ACCOUNT_AGENDA_MKT_B10CC no repositório
+# (criado por `firebase init hosting:github`).
+name: Publicar painel BP RUN
+on:
+  push:
+    branches: [main, claude/ticket-sport-data-extraction-scrq21]
+    paths: ['bprun/**', '.github/workflows/bprun-deploy.yml']
+  workflow_dispatch:
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_AGENDA_MKT_B10CC }}
+          projectId: agenda-mkt-b10cc
+          target: bprun-2026
+          entryPoint: bprun
+          channelId: live
