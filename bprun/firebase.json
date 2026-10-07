@@ -1,7 +1,24 @@
 {
   "hosting": {
+    "site": "bprun-2026",
     "public": ".",
-    "ignore": ["firebase.json", "vercel.json", "scripts/**", "**/.*", "**/*.csv"],
-    "headers": [{ "source": "dados.js", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] }]
+    "ignore": [
+      "firebase.json",
+      "vercel.json",
+      "scripts/**",
+      "**/.*",
+      "**/*.csv"
+    ],
+    "headers": [
+      {
+        "source": "dados.js",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      }
+    ]
   }
 }
