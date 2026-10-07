@@ -34,7 +34,11 @@ function ler_() {
   const arquivos = DriveApp.getFilesByName(ARQUIVO);
   if (!arquivos.hasNext()) return { arquivo: null, dados: { inscricoes: [], lidos: [] } };
   const arquivo = arquivos.next();
-  try { const d = JSON.parse(arquivo.getBlob().getDataAsString()); d.lidos = d.lidos || []; return { arquivo: arquivo, dados: d }; }
+  try {
+    const d = JSON.parse(arquivo.getBlob().getDataAsString());
+    if (!d.lidos) { d.inscricoes = []; d.lidos = []; } // arquivo da versão antiga: relê tudo do zero (sem duplicar)
+    return { arquivo: arquivo, dados: d };
+  }
   catch (e) { return { arquivo: arquivo, dados: { inscricoes: [], lidos: [] } }; }
 }
 
