@@ -22,17 +22,18 @@ def main(path):
     origem_map = {'app ticket sports': 'App Ticket Sports', 'novo-site': 'Site Ticket Sports', 'ticketsports': 'Site Ticket Sports',
                   'ig': 'Instagram', 'instagram': 'Instagram', 'fb': 'Facebook', 'emkt': 'E-mail marketing',
                   'emailrc': 'E-mail marketing', 'emailrc2': 'E-mail marketing'}
-    # nome do cupom: se todos que usam o título têm o MESMO código (cupom de parceiro, ex.: título "10" =
-    # código RADARDASCORRIDAS10), mostra o código; se cada um tem um código próprio (ex.: PCD150), mostra o título
-    codigos = C.defaultdict(set)
+    # nome do cupom: cupons de parceiro repetem o mesmo código (ex.: título "10" = códigos RADARDASCORRIDAS10
+    # e ERIVELTONPASSOS) -> mostra o código; lotes de códigos individuais (PCD150) -> mostra o título
+    usos = C.defaultdict(list)
     for r in rows:
         tit = (r.get('Titulo cupom') or '').strip().upper()
-        if tit: codigos[tit].add((r.get('Codigo cupom') or '').strip().upper())
+        if tit: usos[tit].append((r.get('Codigo cupom') or '').strip().upper())
+    individual = {t for t, cods in usos.items() if len(cods) > 1 and len(set(cods)) == len(cods)}
     def nome_cupom(r):
         tit = (r.get('Titulo cupom') or '').strip().upper()
         if not tit: return 'Sem cupom'
-        cods = codigos[tit] - {''}
-        return next(iter(cods)) if len(cods) == 1 else tit
+        cod = (r.get('Codigo cupom') or '').strip().upper()
+        return tit if tit in individual or not cod else cod
     hoje = date.today()
     out = []
     for r in rows:
