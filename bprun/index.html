@@ -251,7 +251,8 @@ const EMAIL_FEED_URL = 'https://script.google.com/macros/s/AKfycbxJS5Gr-g8wJmlgu
 const META_KITS = 3000;
 // Cupons acompanhados no quadro "Cupons de parceiros". Para incluir outro,
 // acrescente o nome do cupom exatamente como aparece na Ticket Sports.
-const CUPONS_DESTAQUE = ['ALEXDASRESENHAS10', 'RADARDASCORRIDAS10', 'ERIVELTONPASSOS'];
+// Cupons de parceiros: entram sozinhos no quadro (todos menos os internos abaixo), ordenados por uso.
+const CUPONS_INTERNOS = ['Sem cupom', 'PCD150', '200 CUPONS 10', '10ANOSBP10KM', '10ANOSBP5KM'];
 const BASE = window.BPRUN.inscricoes;
 let ALL = BASE;
 let EMAIL_INFO = null;
@@ -425,6 +426,7 @@ function render(){
   const serieMap = new Map(serie.map((x,i)=>[x.d,{...x, ant:i?serie[i-1].n:0}]));
 
   // ---- cupons de parceiros ----
+  const CUPONS_DESTAQUE = sorted(count(ALL.filter(r=>r.k && !CUPONS_INTERNOS.includes(r.k) && !r.k.startsWith('Com cupom')), r=>r.k)).map(x=>x[0]);
   $('cupons').innerHTML = CUPONS_DESTAQUE.map(c=>{
     const cr = rows.filter(r=>r.k===c), n = cr.length;
     if (!n) return `<div class="cupom"><div><div class="nm">${esc(c)}</div><div class="n">0</div></div><div class="nm">nenhum uso no período</div></div>`;
