@@ -36,7 +36,8 @@ function ler_() {
   const arquivo = arquivos.next();
   try {
     const d = JSON.parse(arquivo.getBlob().getDataAsString());
-    if (!d.lidos) { d.inscricoes = []; d.lidos = []; } // arquivo da versão antiga: relê tudo do zero (sem duplicar)
+    // arquivo de versão antiga (sem controle de e-mails lidos/repetidos): relê tudo do zero, sem duplicar
+    if (!d.lidos || (d.inscricoes.length && !d.inscricoes[0]._m)) { d.inscricoes = []; d.lidos = []; }
     return { arquivo: arquivo, dados: d };
   }
   catch (e) { return { arquivo: arquivo, dados: { inscricoes: [], lidos: [] } }; }
@@ -44,8 +45,14 @@ function ler_() {
 
 /** Lê só os e-mails ainda não lidos (os mais novos vêm primeiro) e acrescenta ao arquivo. */
 function atualizar() {
-  const atual = ler_(), inscricoes = atual.dados.inscricoes, lidos = {};
+  const atual = ler_(), lidos = {}, pedidos = {};
   atual.dados.lidos.forEach(function (id) { lidos[id] = true; });
+  // um pedido só entra uma vez, mesmo que a Ticket Sports mande o e-mail repetido
+  const inscricoes = [];
+  atual.dados.inscricoes.forEach(function (r) {
+    if (pedidos[r.p] && pedidos[r.p] !== r._m) return;
+    pedidos[r.p] = r._m || 'x'; inscricoes.push(r);
+  });
   for (let inicio = 0; ; inicio += 100) {
     const threads = GmailApp.search(BUSCA, inicio, 100);
     if (!threads.length) break;
@@ -55,7 +62,8 @@ function atualizar() {
       lidos[t.getId()] = true; novosNaPagina++;
       t.getMessages().forEach(function (msg) {
         const pedido = (msg.getSubject().match(/Pedido confirmado:\s*(\d+)/) || [])[1];
-        if (!pedido) return;
+        if (!pedido || pedidos[pedido]) return; // e-mail repetido do mesmo pedido
+        pedidos[pedido] = msg.getId();
         const html = msg.getBody();
         const pg = html.match(/Data e hora do pagamento:\s*<\/b>\s*(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):/);
         const data = pg ? pg[3] + '-' + pg[2] + '-' + pg[1] : Utilities.formatDate(msg.getDate(), 'America/Manaus', 'yyyy-MM-dd');
@@ -72,7 +80,7 @@ function atualizar() {
             .replace('Camiseta tradicional curta', 'Tradicional').replace('Baby look curta', 'Baby look');
           const como = texto_((bloco.match(/Como ficou sabendo[^<]*<\/b><\/p>\s*<p>([^<]+)</) || [])[1])
             .replace('ticketsports.com.br', 'ticketsportscombr');
-          inscricoes.push({ d: data, h: hora, m: MODALIDADES[norm_(cat)] || cat, t: camisa || '—', c: como || 'Não informado', p: pedido, dp: descPct });
+          inscricoes.push({ d: data, h: hora, m: MODALIDADES[norm_(cat)] || cat, t: camisa || '—', c: como || 'Não informado', p: pedido, dp: descPct, _m: msg.getId() });
         });
       });
     });
@@ -145,6 +153,6 @@ function instalar() {
 /** Endereço público que o painel lê (só dados anônimos). Responde na hora com a última leitura. */
 function doGet() {
   const d = ler_().dados;
-  const conteudo = JSON.stringify({ atualizado: d.atualizado || '', inscricoes: d.inscricoes || [], pdv: d.pdv || [] });
+  const conteudo = JSON.stringify({ atualizado: d.atualizado || '', inscricoes: (d.inscricoes || []).map(function (r) { const c = Object.assign({}, r); delete c._m; return c; }), pdv: d.pdv || [] });
   return ContentService.createTextOutput(conteudo).setMimeType(ContentService.MimeType.JSON);
 }

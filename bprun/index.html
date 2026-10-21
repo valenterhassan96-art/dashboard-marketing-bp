@@ -544,7 +544,11 @@ document.querySelectorAll('.shell section').forEach(s=>io.observe(s));
 const FEED_KEY = 'bprun_feed_v1';
 function aplicarFeed(feed){
   const vistos = new Set(BASE.map(r=>r.p).filter(Boolean));
-  const novos = (feed.inscricoes||[]).filter(r=>r.p && !vistos.has(r.p))
+  // horário do último relatório ("dd/mm/aaaa hh:mm"): e-mail de antes disso que não está no relatório
+  // é pedido cancelado/estornado depois da confirmação -> não conta
+  const g = window.BPRUN.gerado.match(/(\d{2})\/(\d{2})\/(\d{4}) (\d{2})/);
+  const corte = g ? `${g[3]}-${g[2]}-${g[1]} ${g[4]}` : '';
+  const novos = (feed.inscricoes||[]).filter(r=>r.p && !vistos.has(r.p) && `${r.d} ${String(r.h).padStart(2,'0')}` >= corte)
     .map(r=>({ d:r.d, h:r.h, m:r.m, s:null, i:null, o:null, c:r.c||'Não informado', t:r.t||'—', p:r.p,
       // o e-mail não traz o nome do cupom (só o desconto); o nome chega com o próximo relatório CSV
       k: r.dp==null ? null : !r.dp ? 'Sem cupom' : 'Com cupom — identificado no próximo relatório' }));
