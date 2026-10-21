@@ -127,7 +127,8 @@ function lerPdv_() {
       s: /^f/i.test(String(l[cSexo])) ? 'F' : /^m/i.test(String(l[cSexo])) ? 'M' : null,
       i: idade,
       t: tam ? (baby ? 'Baby look - ' : 'Tradicional - ') + tam : '—',
-      v: String(l[cVend] || '').trim().replace(/^0+(?=\d)/, '').slice(0, 20) || null,
+      // só códigos numéricos (quando digitaram um nome no lugar do código, não publicamos)
+      v: /^\d{1,10}$/.test(String(l[cVend] || '').trim()) ? String(l[cVend]).trim().replace(/^0+(?=\d)/, '') : 'sem código',
       p: 'PDV-' + id,
     });
   });
