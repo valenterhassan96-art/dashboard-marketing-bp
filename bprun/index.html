@@ -91,7 +91,7 @@
   .gk span{font-size:12px;color:var(--mut)}
   .gk b{display:flex;align-items:center;gap:8px;font-size:24px;font-weight:600;margin:6px 0 4px;letter-spacing:-.4px}
   .gk small{font-size:11.5px;color:var(--mut)}
-  .canais{display:grid;grid-template-columns:1fr 1fr 1.2fr;gap:12px}
+  .canais{display:grid;grid-template-columns:1fr 1fr;gap:12px}
   .canal{background:var(--track);border-radius:16px;padding:14px 16px;border-left:5px solid var(--cc)}
   .canal span{font-size:12.5px;color:var(--mut);display:flex;align-items:center;gap:7px}
   .canal span i{width:9px;height:9px;border-radius:50%;background:var(--cc)}
@@ -366,8 +366,7 @@ function render(){
   const canal = (cls,cor,nome,n,hj,extra)=>`<div class="canal ${cls}" style="--cc:${cor}"><span><i></i>${nome}</span>
     <b>${fmt(n)}<em>${cls==='tot'?'kits':pct(n,N)}</em></b><small>hoje: <b style="display:inline;font-size:inherit;color:inherit">${fmt(hj)}</b>${extra||''}</small></div>`;
   $('canais').innerHTML = canal('','var(--blue)','Ticket Sports (site e app)',nTs,hojeTs) +
-    canal('','var(--c4)','PDV (lojas)',nPdv,hojePdv) +
-    canal('tot','#fff','Total',N,nHoje,` · ${pct(N,META_KITS)} da meta`);
+    canal('','var(--c4)','PDV (lojas)',nPdv,hojePdv);
   $('canaisBar').innerHTML = N ? `<div style="width:${nTs/N*100}%;background:var(--blue)"></div><div style="width:${nPdv/N*100}%;background:var(--c4)"></div>` : '';
   $('canaisSub').textContent = per ? `últimos ${per} dias` : 'todo o período';
 
