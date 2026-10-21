@@ -78,14 +78,60 @@ function atualizar() {
     });
     if (threads.length < 100 || !novosNaPagina) break; // página sem novidade: o resto já foi lido
   }
+  let pdv = atual.dados.pdv || [];
+  try { pdv = lerPdv_(); } catch (e) { Logger.log('Falha ao ler a planilha do PDV: ' + e); }
   const conteudo = JSON.stringify({
     atualizado: Utilities.formatDate(new Date(), 'America/Manaus', 'dd/MM HH:mm'),
     inscricoes: inscricoes,
+    pdv: pdv,
     lidos: Object.keys(lidos),
   });
   if (atual.arquivo) atual.arquivo.setContent(conteudo);
   else DriveApp.createFile(ARQUIVO, conteudo, MimeType.PLAIN_TEXT);
   return inscricoes.length;
+}
+
+/**
+ * Vendas no PDV: lê a planilha de respostas do formulário "VENDA KITS BP RUN".
+ * Sai só o que é anônimo (data/hora, modalidade, sexo, idade, camiseta e código do vendedor).
+ * O CPF é usado apenas para descartar respostas repetidas e vira um código embaralhado.
+ */
+const PLANILHA_PDV = '1MUp6CYfNs9xlbUp7GDctFXbx4rG5kqb_ABM7KV8um_k';
+
+function lerPdv_() {
+  const aba = SpreadsheetApp.openById(PLANILHA_PDV).getSheets()[0];
+  const linhas = aba.getDataRange().getValues();
+  const cab = linhas.shift().map(function (h) { return norm_(h); });
+  const col = function (trecho) { return cab.findIndex(function (h) { return h.indexOf(trecho) >= 0; }); };
+  const cData = col('carimbo'), cVend = col('vendedor'), cCpf = col('cpf'), cNasc = col('nascimento'),
+        cSexo = col('sexo'), cCamisa = col('camisa'), cMod = col('modalidade');
+  const vistos = {}, out = [];
+  linhas.forEach(function (l) {
+    const quando = l[cData];
+    if (!(quando instanceof Date)) return;
+    const cpf = String(l[cCpf] || '').replace(/\D/g, '');
+    const chave = cpf || String(quando.getTime());
+    if (vistos[chave]) return; // resposta repetida da mesma pessoa
+    vistos[chave] = true;
+    const id = Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, 'bprun-pdv-' + chave)).slice(0, 12);
+    const nasc = l[cNasc] instanceof Date ? l[cNasc] : null;
+    let idade = nasc ? quando.getFullYear() - nasc.getFullYear() - (quando < new Date(quando.getFullYear(), nasc.getMonth(), nasc.getDate()) ? 1 : 0) : null;
+    if (idade != null && (idade < 5 || idade > 100)) idade = null; // data de nascimento digitada errada
+    const mod = norm_(l[cMod]).replace(/\s/g, '');
+    const camisaTxt = String(l[cCamisa] || '').trim(), baby = /baby/i.test(camisaTxt);
+    const tam = camisaTxt.replace(/baby\s*look/i, '').trim().toUpperCase();
+    out.push({
+      d: Utilities.formatDate(quando, 'America/Manaus', 'yyyy-MM-dd'),
+      h: Number(Utilities.formatDate(quando, 'America/Manaus', 'H')),
+      m: mod.indexOf('10') === 0 ? '10 km' : '5 km',
+      s: /^f/i.test(String(l[cSexo])) ? 'F' : /^m/i.test(String(l[cSexo])) ? 'M' : null,
+      i: idade,
+      t: tam ? (baby ? 'Baby look - ' : 'Tradicional - ') + tam : '—',
+      v: String(l[cVend] || '').trim().replace(/^0+(?=\d)/, '').slice(0, 20) || null,
+      p: 'PDV-' + id,
+    });
+  });
+  return out;
 }
 
 /** Rode uma vez: autoriza o acesso, faz a primeira leitura e agenda a cada 1 minuto. */
@@ -98,6 +144,6 @@ function instalar() {
 /** Endereço público que o painel lê (só dados anônimos). Responde na hora com a última leitura. */
 function doGet() {
   const d = ler_().dados;
-  const conteudo = JSON.stringify({ atualizado: d.atualizado || '', inscricoes: d.inscricoes || [] });
+  const conteudo = JSON.stringify({ atualizado: d.atualizado || '', inscricoes: d.inscricoes || [], pdv: d.pdv || [] });
   return ContentService.createTextOutput(conteudo).setMimeType(ContentService.MimeType.JSON);
 }

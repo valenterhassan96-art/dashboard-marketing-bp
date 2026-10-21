@@ -232,6 +232,7 @@
     <details class="card"><summary><span><span class="nm">Camisetas</span><span class="top1" id="tCamisa"></span></span><span class="chev"><svg width="14" height="14" fill="none" stroke="#111827" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span></summary><div id="bCamisa"></div></details>
     <details class="card"><summary><span><span class="nm">Dia da semana</span><span class="top1" id="tSemana"></span></span><span class="chev"><svg width="14" height="14" fill="none" stroke="#111827" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span></summary><div id="bSemana"></div></details>
     <details class="card"><summary><span><span class="nm">Horário da compra</span><span class="top1" id="tHora"></span></span><span class="chev"><svg width="14" height="14" fill="none" stroke="#111827" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span></summary><div id="bHora"></div></details>
+    <details class="card"><summary><span><span class="nm">Vendedores do PDV</span><span class="top1" id="tVend"></span></span><span class="chev"><svg width="14" height="14" fill="none" stroke="#111827" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span></summary><div id="bVend"></div></details>
   </section>
 
   <section id="s-tabela" class="card">
@@ -249,6 +250,8 @@
 const EMAIL_FEED_URL = 'https://script.google.com/macros/s/AKfycbxJS5Gr-g8wJmlguCY7TyJ5a5sbSC-7TL0JMTd5dJidZPz84ZBN1I3BeOpDcymJWQzvvg/exec';
 // Meta de kits do evento (medidor "Meta de inscritos").
 const META_KITS = 3000;
+// Encerramento das inscrições (prazo usado no cálculo de quanto falta por dia para a meta).
+const ENCERRAMENTO = '2026-10-25';
 // Cupons acompanhados no quadro "Cupons de parceiros". Para incluir outro,
 // acrescente o nome do cupom exatamente como aparece na Ticket Sports.
 // Cupons de parceiros: entram sozinhos no quadro (todos menos os internos abaixo), ordenados por uso.
@@ -387,7 +390,7 @@ function render(){
   $('minis').innerHTML = `<div class="mini"><span>Faltam para a meta</span><b>${fmt(Math.max(0,META_KITS-totalAll))}</b></div>
     <div class="mini"><span>Mulheres</span><b>${pct(fem,comSexo.length)} <span class="chip dark">${fmt(fem)}</span></b></div>
     <div class="mini"><span>Inscrições PCD</span><b>${fmt(pcd)} <span class="chip">${pct(pcd,N)}</span></b></div>
-    <div class="mini"><span>10 km</span><b>${fmt(rows.filter(r=>r.m==='10 km').length)} <span class="chip dark">${pct(rows.filter(r=>r.m==='10 km').length,N)}</span></b></div>`;
+    <div class="mini"><span>Vendidos no PDV</span><b>${fmt(rows.filter(r=>r.o==='PDV (loja)').length)} <span class="chip dark">${pct(rows.filter(r=>r.o==='PDV (loja)').length,N)}</span></b></div>`;
 
   // ---- crescimento diário (sobre todo o histórico, respeitando modalidade/sexo) ----
   const porDiaBase = count(base,r=>r.d);
@@ -397,8 +400,10 @@ function render(){
   const hojeLocal = new Date(Date.now()-4*36e5).toISOString().slice(0,10); // Manaus (UTC−4)
   const parcial = hoje.d === hojeLocal;
   const ritmo7 = ult7/7, faltam = Math.max(0, META_KITS-acum);
-  const diasMeta = ritmo7 ? Math.ceil(faltam/ritmo7) : null;
-  const prev = diasMeta!=null ? new Date(new Date(hoje.d+'T12:00').getTime()+diasMeta*864e5) : null;
+  // prazo: encerramento das inscrições (inclui o dia de hoje e o dia do encerramento)
+  const diasRest = Math.max(0, Math.round((new Date(ENCERRAMENTO+'T12:00') - new Date(hojeLocal+'T12:00'))/864e5) + 1);
+  const precisaDia = diasRest ? Math.ceil(faltam/diasRest) : null;
+  const projecao = acum + Math.round(ritmo7*diasRest) - (parcial ? hoje.n : 0);
   const gpct = v => v==null ? '—' : '+'+(v*100).toFixed(1).replace('.',',')+'%';
   const gk = (lbl,val,bdg,sub)=>`<div class="gk"><span>${lbl}</span><b>${val}${bdg}</b><small>${sub}</small></div>`;
   $('crescSub').textContent = `último dia com dados: ${fd(hoje.d)}`;
@@ -406,8 +411,8 @@ function render(){
     gk(`Vendas em ${fd(hoje.d)}${parcial?' (parcial)':''}`, fmt(hoje.n), parcial?'<span class="badge flat">em andamento</span>':badge(hoje.n, ontem.n), `dia anterior: ${fmt(ontem.n)}`) +
     gk(`Vendas em ${fd(ontem.d||hoje.d)}`, fmt(ontem.n), badge(ontem.n, anteontem.n), `dia anterior: ${fmt(anteontem.n)}`) +
     gk('Crescimento do total no dia', gpct(hoje.cresc), '', `${fmt(ontem.acc)} → ${fmt(hoje.acc)} kits`) +
-    gk('Previsão para a meta', faltam? (prev? prev.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}) : '—') : 'Atingida', '',
-       faltam ? `faltam ${fmt(faltam)} · ritmo de ${ritmo7.toFixed(0)}/dia (7d)` : `${fmt(acum)} kits`);
+    gk(`Para a meta até ${fd(ENCERRAMENTO)}`, faltam ? (diasRest ? `${fmt(precisaDia)}/dia` : 'Encerrado') : 'Atingida', '',
+       faltam ? `faltam ${fmt(faltam)} em ${diasRest} dia${diasRest===1?'':'s'} · ritmo atual ${ritmo7.toFixed(0)}/dia · projeção ${fmt(projecao)} kits` : `${fmt(acum)} kits`);
   // linha: crescimento % do total por dia (últimos 21 dias)
   const ult = serie.slice(-21).filter(x=>x.cresc!=null);
   const cbox = $('crescChart'), CW = Math.max(300, cbox.clientWidth||900), CH = mob?170:190, cl=44, cr=24, ct=18, cb=26;
@@ -452,6 +457,9 @@ function render(){
   const SEM=['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
   bars('bSemana', [...count(rows,r=>SEM[new Date(r.d+'T12:00').getDay()])], N, 'var(--blue)', SEM.slice(1).concat('Domingo'));
   const perH = h => h<6?'Madrugada (0–5h)':h<12?'Manhã (6–11h)':h<18?'Tarde (12–17h)':'Noite (18–23h)';
+  const rV = rows.filter(r=>r.v);
+  bars('bVend', sorted(count(rV,r=>'Vendedor '+r.v)).slice(0,15), rV.length, 'var(--c4)');
+  if (!rV.length) $('bVend').innerHTML = '<div class="row"><div class="t"><span>Sem vendas no PDV no período</span></div></div>';
   bars('bHora', [...count(rows,r=>perH(r.h))], N, 'var(--dark)', ['Manhã (6–11h)','Tarde (12–17h)','Noite (18–23h)','Madrugada (0–5h)']);
 
   // ---- tabela ----
@@ -512,8 +520,10 @@ function aplicarFeed(feed){
     .map(r=>({ d:r.d, h:r.h, m:r.m, s:null, i:null, o:null, c:r.c||'Não informado', t:r.t||'—', p:r.p,
       // o e-mail não traz o nome do cupom (só o desconto); o nome chega com o próximo relatório CSV
       k: r.dp==null ? null : !r.dp ? 'Sem cupom' : 'Com cupom — identificado no próximo relatório' }));
-  ALL = BASE.concat(novos); ALL_DAYS = calcDays();
-  EMAIL_INFO = { novos:novos.length, ate:feed.atualizado||'' };
+  // vendas no PDV (formulário das lojas): já chegam anônimas e sem repetição; não estão na Ticket Sports
+  const pdv = (feed.pdv||[]).map(r=>({ d:r.d, h:r.h, m:r.m, s:r.s||null, i:r.i==null?null:r.i, o:'PDV (loja)', c:'PDV (loja)', t:r.t||'—', p:r.p, k:null, v:r.v||null }));
+  ALL = BASE.concat(novos, pdv); ALL_DAYS = calcDays();
+  EMAIL_INFO = { novos:novos.length, pdv:pdv.length, ate:feed.atualizado||'' };
   completo = true;
   setMeta();
 }
