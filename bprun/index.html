@@ -373,13 +373,12 @@ function render(){
   const nPdv = rows.filter(ehPdv).length, nCol = rows.filter(ehCol).length, nGrp = rows.filter(ehGrp).length, nTs = N - nPdv - nCol - nGrp;
   const hj = f => base.filter(r=>r.d===diaHoje && f(r)).length;
   const hojePdv = hj(ehPdv), hojeCol = hj(ehCol), hojeGrp = hj(ehGrp), hojeTs = nHoje - hojePdv - hojeCol - hojeGrp;
-  const pend = Object.values(EXTRAS.grupos_pendentes||{}).reduce((a,b)=>a+b,0);
   const canal = (cls,cor,nome,n,hj,extra)=>`<div class="canal ${cls}" style="--cc:${cor}"><span><i></i>${nome}</span>
     <b>${fmt(n)}<em>${cls==='tot'?'kits':pct(n,N)}</em></b><small>hoje: <b style="display:inline;font-size:inherit;color:inherit">${fmt(hj)}</b>${extra||''}</small></div>`;
   $('canais').innerHTML = canal('','var(--blue)','Ticket Sports (site e app)',nTs,hojeTs) +
     canal('','var(--c4)','PDV (lojas)',nPdv,hojePdv) +
     canal('','var(--c5)','Colaboradores',nCol,hojeCol) +
-    canal('','var(--up)','Grupos (fora da TS)',nGrp,hojeGrp, pend ? ` · ${fmt(pend)} aguardando pagamento` : '');
+    canal('','var(--up)','Grupos (fora da TS)',nGrp,hojeGrp, nGrp ? ' · pagamento a confirmar' : '');
   $('canaisBar').innerHTML = N ? `<div style="width:${nTs/N*100}%;background:var(--blue)"></div><div style="width:${nPdv/N*100}%;background:var(--c4)"></div><div style="width:${nCol/N*100}%;background:var(--c5)"></div><div style="width:${nGrp/N*100}%;background:var(--up)"></div>` : '';
   const cortes = EXTRAS.cortesias;
   $('cort').innerHTML = cortes ? `<span>🎁 Cortesias de patrocinadores (fora do total de vendidos)</span><span>previstas: <b>${fmt(cortes.previstas)}</b></span><span>confirmadas: <b>${fmt(cortes.confirmadas)}</b></span><span>${Object.entries(cortes.por_pacote).map(([k,v])=>k+' '+v).join(' · ')}</span>` : '';
@@ -575,7 +574,7 @@ function aplicarFeed(feed){
   // colaboradores: versão automática do script; se ainda não vier, usa a lista anônima de extras.js
   const colab = colabRows((feed.colab && feed.colab.length) ? feed.colab : EXTRAS.colab);
   const pdv = (feed.pdv||[]).map(r=>({ d:r.d, h:r.h, m:r.m, s:r.s||null, i:r.i==null?null:r.i, o:'PDV (loja)', c:'PDV (loja)', t:r.t||'—', p:r.p, k:null, v:r.v||null }));
-  ALL = BASE.concat(novos, pdv, colab, grupoRows(EXTRAS.grupos)); ALL_DAYS = calcDays();
+  ALL = BASE.concat(novos, pdv, colab, grupoRows((feed.grupos && feed.grupos.length) ? feed.grupos : EXTRAS.grupos)); ALL_DAYS = calcDays();
   EMAIL_INFO = { novos:novos.length, pdv:pdv.length, ate:feed.atualizado||'' };
   completo = true;
   setMeta();

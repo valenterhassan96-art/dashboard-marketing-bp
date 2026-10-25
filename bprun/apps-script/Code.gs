@@ -90,11 +90,14 @@ function atualizar() {
   try { pdv = lerPdv_(); } catch (e) { Logger.log('Falha ao ler a planilha do PDV: ' + e); }
   let colab = atual.dados.colab || [];
   try { colab = lerColab_(); } catch (e) { Logger.log('Falha ao ler a planilha dos colaboradores: ' + e); }
+  let grupos = atual.dados.grupos || [];
+  try { grupos = lerGrupos_(); } catch (e) { Logger.log('Falha ao ler os formulários dos grupos: ' + e); }
   const conteudo = JSON.stringify({
     atualizado: Utilities.formatDate(new Date(), 'America/Manaus', 'dd/MM HH:mm'),
     inscricoes: inscricoes,
     pdv: pdv,
     colab: colab,
+    grupos: grupos,
     lidos: Object.keys(lidos),
   });
   if (atual.arquivo) atual.arquivo.setContent(conteudo);
@@ -194,6 +197,50 @@ function lerColab_() {
   return out;
 }
 
+/**
+ * Grupos: formulários de inscrição de grupos (fora da Ticket Sports). Conta todas as respostas
+ * (pagamento ainda a confirmar) e sai só anônimo (data, percurso, camiseta e nome do grupo).
+ */
+const FORMS_GRUPOS = {
+  'Corremanaus': '1LHjYFqZXzhwOV5QFU0ZaPuRS-UrOZZHVqKKODpaKQq0',
+  'Lions Runner': '1WrE8Fk_F9mbyIlPPpU2YaV-uztqCbsoMVk4g3865lLU',
+  'Raposinha': '1t8bKrK7cdTBn-qeQ7efZjII2C9z9c50YG08CLTx_9B0',
+  'Mário Runners': '1Npk-oz_r1xlRPA5w2Hd1dU21i9KDLNxhICH5ukvfEaw',
+};
+
+function lerGrupos_() {
+  const out = [];
+  Object.keys(FORMS_GRUPOS).forEach(function (grupo) {
+    let respostas;
+    try { respostas = FormApp.openById(FORMS_GRUPOS[grupo]).getResponses(); }
+    catch (e) { Logger.log('Falha ao ler o formulário ' + grupo + ': ' + e); return; }
+    const vistos = {};
+    respostas.forEach(function (r) {
+      let perc = '', camisa = '', chave = '';
+      r.getItemResponses().forEach(function (ir) {
+        const t = norm_(ir.getItem().getTitle()), v = String(ir.getResponse() || '');
+        if (t.indexOf('percurso') >= 0 || t.indexOf('modalidade') >= 0 || t.indexOf('distancia') >= 0) perc = v;
+        else if (t.indexOf('camis') >= 0 || t.indexOf('tamanho') >= 0) camisa = v;
+        else if (t.indexOf('cpf') >= 0) chave = v.replace(/\D/g, '') || chave;
+        else if (!chave && (t.indexOf('mail') >= 0 || t.indexOf('nome') >= 0)) chave = norm_(v);
+      });
+      chave = chave || norm_(r.getRespondentEmail()) || String(r.getTimestamp().getTime());
+      if (vistos[chave]) return; // mesma pessoa respondeu de novo
+      vistos[chave] = true;
+      const baby = /baby/i.test(camisa), tam = camisa.replace(/[-\s]*baby\s*look/i, '').trim().toUpperCase();
+      out.push({
+        d: Utilities.formatDate(r.getTimestamp(), 'America/Manaus', 'yyyy-MM-dd'),
+        h: Number(Utilities.formatDate(r.getTimestamp(), 'America/Manaus', 'H')),
+        m: /10/.test(perc) ? '10 km' : '5 km',
+        t: tam ? (baby ? 'Baby look - ' : 'Tradicional - ') + tam : '—',
+        q: grupo,
+        p: 'GRP-' + Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, 'bprun-grp-' + grupo + chave)).slice(0, 12),
+      });
+    });
+  });
+  return out;
+}
+
 /** Rode uma vez: autoriza o acesso, faz a primeira leitura e agenda a cada 1 minuto. */
 function instalar() {
   ScriptApp.getProjectTriggers().forEach(function (t) { ScriptApp.deleteTrigger(t); });
@@ -204,6 +251,6 @@ function instalar() {
 /** Endereço público que o painel lê (só dados anônimos). Responde na hora com a última leitura. */
 function doGet() {
   const d = ler_().dados;
-  const conteudo = JSON.stringify({ atualizado: d.atualizado || '', inscricoes: (d.inscricoes || []).map(function (r) { const c = Object.assign({}, r); delete c._m; return c; }), pdv: d.pdv || [], colab: d.colab || [] });
+  const conteudo = JSON.stringify({ atualizado: d.atualizado || '', inscricoes: (d.inscricoes || []).map(function (r) { const c = Object.assign({}, r); delete c._m; return c; }), pdv: d.pdv || [], colab: d.colab || [], grupos: d.grupos || [] });
   return ContentService.createTextOutput(conteudo).setMimeType(ContentService.MimeType.JSON);
 }
