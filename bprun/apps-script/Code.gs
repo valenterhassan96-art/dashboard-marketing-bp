@@ -88,10 +88,13 @@ function atualizar() {
   }
   let pdv = atual.dados.pdv || [];
   try { pdv = lerPdv_(); } catch (e) { Logger.log('Falha ao ler a planilha do PDV: ' + e); }
+  let colab = atual.dados.colab || [];
+  try { colab = lerColab_(); } catch (e) { Logger.log('Falha ao ler a planilha dos colaboradores: ' + e); }
   const conteudo = JSON.stringify({
     atualizado: Utilities.formatDate(new Date(), 'America/Manaus', 'dd/MM HH:mm'),
     inscricoes: inscricoes,
     pdv: pdv,
+    colab: colab,
     lidos: Object.keys(lidos),
   });
   if (atual.arquivo) atual.arquivo.setContent(conteudo);
@@ -143,6 +146,54 @@ function lerPdv_() {
   return out;
 }
 
+/**
+ * Colaboradores: formulário "Inscrição Colaboradores - BP RUN". Conta só os com pagamento confirmado
+ * ("Sim"), multiplica pela "Quantidade de Kit's" e sai anônimo (data, percurso, idade, camiseta).
+ */
+const PLANILHA_COLAB = '16oVwXjStilIOCeiAhpIknm-zUPprI6FV2zcbfGXnoTU';
+
+function lerColab_() {
+  const linhas = SpreadsheetApp.openById(PLANILHA_COLAB).getSheets()[0].getDataRange().getValues();
+  const cab = linhas.shift().map(function (h) { return norm_(h); });
+  const col = function (trecho) { return cab.findIndex(function (h) { return h.indexOf(trecho) >= 0; }); };
+  const cData = col('carimbo'), cCpf = col('cpf'), cQtd = col('quantidade'), cPag = col('pagamento'),
+        cCamisa = col('camisa'), cPerc = col('percurso'), cNasc = col('nascimento');
+  const vistos = {}, out = [];
+  linhas.forEach(function (l) {
+    if (!/^s/i.test(String(l[cPag] || '').trim())) return; // pagamento não confirmado
+    // data: aceita data do Google ou texto dd/mm/aaaa; ano digitado errado (ex.: 2023) vira 2026
+    let quando = l[cData];
+    if (!(quando instanceof Date)) {
+      const m = String(quando || '').match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+      quando = m ? new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]), 12) : null;
+    }
+    if (!quando) return;
+    if (quando.getFullYear() !== 2026) quando = new Date(2026, quando.getMonth(), quando.getDate(), quando.getHours());
+    const cpf = String(l[cCpf] || '').replace(/\D/g, '');
+    const chave = cpf || String(quando.getTime()) + out.length;
+    if (vistos[chave]) return;
+    vistos[chave] = true;
+    const id = Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, 'bprun-col-' + chave)).slice(0, 12);
+    const nasc = l[cNasc] instanceof Date ? l[cNasc] : null;
+    let idade = nasc ? quando.getFullYear() - nasc.getFullYear() : null;
+    if (idade != null && (idade < 5 || idade > 100)) idade = null;
+    const camisaTxt = String(l[cCamisa] || '').trim(), baby = /baby/i.test(camisaTxt);
+    const tam = camisaTxt.replace(/[-\s]*baby\s*look/i, '').trim().toUpperCase();
+    const qtd = Math.max(1, Math.min(10, parseInt(l[cQtd], 10) || 1));
+    for (let k = 0; k < qtd; k++) {
+      out.push({
+        d: Utilities.formatDate(quando, 'America/Manaus', 'yyyy-MM-dd'),
+        h: Number(Utilities.formatDate(quando, 'America/Manaus', 'H')),
+        m: /10/.test(String(l[cPerc])) ? '10 km' : '5 km',
+        i: k ? null : idade,
+        t: tam ? (baby ? 'Baby look - ' : 'Tradicional - ') + tam : '—',
+        p: 'COL-' + id + (k ? '-' + k : ''),
+      });
+    }
+  });
+  return out;
+}
+
 /** Rode uma vez: autoriza o acesso, faz a primeira leitura e agenda a cada 1 minuto. */
 function instalar() {
   ScriptApp.getProjectTriggers().forEach(function (t) { ScriptApp.deleteTrigger(t); });
@@ -153,6 +204,6 @@ function instalar() {
 /** Endereço público que o painel lê (só dados anônimos). Responde na hora com a última leitura. */
 function doGet() {
   const d = ler_().dados;
-  const conteudo = JSON.stringify({ atualizado: d.atualizado || '', inscricoes: (d.inscricoes || []).map(function (r) { const c = Object.assign({}, r); delete c._m; return c; }), pdv: d.pdv || [] });
+  const conteudo = JSON.stringify({ atualizado: d.atualizado || '', inscricoes: (d.inscricoes || []).map(function (r) { const c = Object.assign({}, r); delete c._m; return c; }), pdv: d.pdv || [], colab: d.colab || [] });
   return ContentService.createTextOutput(conteudo).setMimeType(ContentService.MimeType.JSON);
 }

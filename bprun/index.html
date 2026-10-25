@@ -91,7 +91,7 @@
   .gk span{font-size:12px;color:var(--mut)}
   .gk b{display:flex;align-items:center;gap:8px;font-size:24px;font-weight:600;margin:6px 0 4px;letter-spacing:-.4px}
   .gk small{font-size:11.5px;color:var(--mut)}
-  .canais{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .canais{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
   .canal{background:var(--track);border-radius:16px;padding:14px 16px;border-left:5px solid var(--cc)}
   .canal span{font-size:12.5px;color:var(--mut);display:flex;align-items:center;gap:7px}
   .canal span i{width:9px;height:9px;border-radius:50%;background:var(--cc)}
@@ -102,7 +102,7 @@
   .canal.tot span,.canal.tot small,.canal.tot b em{color:rgba(255,255,255,.75)}
   .cbar{display:flex;height:10px;border-radius:99px;overflow:hidden;margin-top:14px;background:var(--track)}
   .cbar div{height:100%}
-  @media (max-width:640px){ .canais{grid-template-columns:1fr 1fr} .canal.tot{grid-column:1/-1} .canal b{font-size:24px} }
+  @media (max-width:640px){ .canais{grid-template-columns:1fr} .canal.tot{grid-column:1/-1} .canal b{font-size:24px} }
   .chip{font-size:9.5px;font-weight:600;padding:2px 6px;border-radius:99px;color:#fff;background:var(--c4)}
   .chip.dark{background:var(--dark)}
 
@@ -250,6 +250,7 @@
     <details class="card"><summary><span><span class="nm">Dia da semana</span><span class="top1" id="tSemana"></span></span><span class="chev"><svg width="14" height="14" fill="none" stroke="#111827" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span></summary><div id="bSemana"></div></details>
     <details class="card"><summary><span><span class="nm">Horário da compra</span><span class="top1" id="tHora"></span></span><span class="chev"><svg width="14" height="14" fill="none" stroke="#111827" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span></summary><div id="bHora"></div></details>
     <details class="card"><summary><span><span class="nm">Vendedores do PDV</span><span class="top1" id="tVend"></span></span><span class="chev"><svg width="14" height="14" fill="none" stroke="#111827" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span></summary><div id="bVend"></div></details>
+    <details class="card"><summary><span><span class="nm">Equipes e grupos</span><span class="top1" id="tEquipe"></span></span><span class="chev"><svg width="14" height="14" fill="none" stroke="#111827" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span></summary><div id="bEquipe"></div></details>
   </section>
 
   <section id="s-tabela" class="card">
@@ -360,14 +361,15 @@ function render(){
     kpi('',ICON.pulse,'var(--blue)','Média por dia (7d)',media7.toFixed(1).replace('.',','),badge(media7,mediaAnt),`melhor dia: <b>${fmt(peak[1])}</b>${peak[0]?' em '+fd(peak[0]):''}`);
 
   // ---- vendas por canal: Ticket Sports (relatório + e-mails) x PDV (formulário das lojas) ----
-  const ehPdv = r => r.o==='PDV (loja)';
-  const nPdv = rows.filter(ehPdv).length, nTs = N - nPdv;
-  const hojePdv = base.filter(r=>r.d===diaHoje && ehPdv(r)).length, hojeTs = nHoje - hojePdv;
+  const ehPdv = r => r.o==='PDV (loja)', ehCol = r => r.o==='Colaboradores';
+  const nPdv = rows.filter(ehPdv).length, nCol = rows.filter(ehCol).length, nTs = N - nPdv - nCol;
+  const hojePdv = base.filter(r=>r.d===diaHoje && ehPdv(r)).length, hojeCol = base.filter(r=>r.d===diaHoje && ehCol(r)).length, hojeTs = nHoje - hojePdv - hojeCol;
   const canal = (cls,cor,nome,n,hj,extra)=>`<div class="canal ${cls}" style="--cc:${cor}"><span><i></i>${nome}</span>
     <b>${fmt(n)}<em>${cls==='tot'?'kits':pct(n,N)}</em></b><small>hoje: <b style="display:inline;font-size:inherit;color:inherit">${fmt(hj)}</b>${extra||''}</small></div>`;
   $('canais').innerHTML = canal('','var(--blue)','Ticket Sports (site e app)',nTs,hojeTs) +
-    canal('','var(--c4)','PDV (lojas)',nPdv,hojePdv);
-  $('canaisBar').innerHTML = N ? `<div style="width:${nTs/N*100}%;background:var(--blue)"></div><div style="width:${nPdv/N*100}%;background:var(--c4)"></div>` : '';
+    canal('','var(--c4)','PDV (lojas)',nPdv,hojePdv) +
+    canal('','var(--c5)','Colaboradores',nCol,hojeCol);
+  $('canaisBar').innerHTML = N ? `<div style="width:${nTs/N*100}%;background:var(--blue)"></div><div style="width:${nPdv/N*100}%;background:var(--c4)"></div><div style="width:${nCol/N*100}%;background:var(--c5)"></div>` : '';
   $('canaisSub').textContent = per ? `últimos ${per} dias` : 'todo o período';
 
   // ---- gráfico de barras ----
@@ -485,6 +487,10 @@ function render(){
   const SEM=['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
   bars('bSemana', [...count(rows,r=>SEM[new Date(r.d+'T12:00').getDay()])], N, 'var(--blue)', SEM.slice(1).concat('Domingo'));
   const perH = h => h<6?'Madrugada (0–5h)':h<12?'Manhã (6–11h)':h<18?'Tarde (12–17h)':'Noite (18–23h)';
+  const rQ = rows.filter(r=>r.q && r.q!=='Avulso'), rG = rows.filter(r=>r.g>=3), rQall = rows.filter(r=>r.q);
+  bars('bEquipe', sorted(count(rQ,r=>r.q)).slice(0,15), rQall.length, 'var(--blue)');
+  $('bEquipe').insertAdjacentHTML('afterbegin', `<div class="row"><div class="t"><span><b>Com equipe</b> · ${fmt(rQ.length)} (${pct(rQ.length,rQall.length)})</span><span>Em pedidos de grupo (3+): <b>${fmt(rG.length)}</b></span></div></div>`);
+  $('tEquipe').textContent = `${fmt(rQ.length)} com equipe · ${fmt(rG.length)} em grupos`;
   const rV = rows.filter(r=>r.v);
   bars('bVend', sorted(count(rV,r=>'Vendedor '+r.v)).slice(0,15), rV.length, 'var(--c4)');
   if (!rV.length) $('bVend').innerHTML = '<div class="row"><div class="t"><span>Sem vendas no PDV no período</span></div></div>';
@@ -553,8 +559,9 @@ function aplicarFeed(feed){
       // o e-mail não traz o nome do cupom (só o desconto); o nome chega com o próximo relatório CSV
       k: r.dp==null ? null : !r.dp ? 'Sem cupom' : 'Com cupom — identificado no próximo relatório' }));
   // vendas no PDV (formulário das lojas): já chegam anônimas e sem repetição; não estão na Ticket Sports
+  const colab = (feed.colab||[]).map(r=>({ d:r.d, h:r.h, m:r.m, s:null, i:r.i==null?null:r.i, o:'Colaboradores', c:'Colaboradores', t:r.t||'—', p:r.p, k:null }));
   const pdv = (feed.pdv||[]).map(r=>({ d:r.d, h:r.h, m:r.m, s:r.s||null, i:r.i==null?null:r.i, o:'PDV (loja)', c:'PDV (loja)', t:r.t||'—', p:r.p, k:null, v:r.v||null }));
-  ALL = BASE.concat(novos, pdv); ALL_DAYS = calcDays();
+  ALL = BASE.concat(novos, pdv, colab); ALL_DAYS = calcDays();
   EMAIL_INFO = { novos:novos.length, pdv:pdv.length, ate:feed.atualizado||'' };
   completo = true;
   setMeta();

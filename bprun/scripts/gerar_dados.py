@@ -34,6 +34,17 @@ def main(path):
         if not tit: return 'Sem cupom'
         cod = (r.get('Codigo cupom') or '').strip().upper()
         return tit if tit in individual or not cod else cod
+    # equipe declarada pelo atleta: junta grafias parecidas ("ENDORFINADOS RUNNERS" = "ENDORFINADOS")
+    AVULSO = ('AVULSO', 'AVILSO', 'AVULSA', 'AVULSOS', 'NAO TENHO', 'NAO', 'SEM EQUIPE', 'NENHUMA', 'NENHUM', 'NAO POSSUO', 'N/A', 'NA', '.', '-', '')
+    bruto = lambda r: ' '.join(norm(r.get('Insira_o_nome_da_Equipe_CASO_NO_TENHA_DIGITE_AVULSO') or '').upper().replace('-', ' ').split())
+    nomes = {bruto(r) for r in rows}
+    def equipe(r):
+        e = bruto(r)
+        if e in AVULSO: return 'Avulso'
+        for suf in (' RUNNERS', ' RUNNER', ' TEAM'):
+            if e.endswith(suf) and e[:-len(suf)] in nomes: e = e[:-len(suf)]
+        return e.title()
+    tam_pedido = C.Counter(r['N do Pedido'] for r in rows)
     hoje = date.today()
     out = []
     for r in rows:
@@ -56,6 +67,8 @@ def main(path):
             'k': nome_cupom(r),
             't': camisa.replace('Camiseta tradicional curta', 'Tradicional').replace('Baby look curta', 'Baby look') or '—',
             'p': (r.get('N do Pedido') or '').strip(),
+            'q': equipe(r),
+            'g': tam_pedido[r['N do Pedido']],
             'l': 'Manaus' if cidade.startswith('mana') and 'manacapuru' not in cidade else 'Outras cidades',
         })
     # cada registro é uma inscrição anônima: nenhum nome, documento, contato ou endereço sai daqui
