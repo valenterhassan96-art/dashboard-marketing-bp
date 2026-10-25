@@ -103,6 +103,8 @@
   .cbar{display:flex;height:10px;border-radius:99px;overflow:hidden;margin-top:14px;background:var(--track)}
   .cbar div{height:100%}
   @media (max-width:640px){ .canais{grid-template-columns:1fr} .canal.tot{grid-column:1/-1} .canal b{font-size:24px} }
+  .cort{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;margin-top:14px;padding:12px 14px;border:1.5px dashed #d6dae2;border-radius:14px;font-size:12.5px;color:var(--mut)}
+  .cort b{color:var(--ink);font-size:15px}
   .chip{font-size:9.5px;font-weight:600;padding:2px 6px;border-radius:99px;color:#fff;background:var(--c4)}
   .chip.dark{background:var(--dark)}
 
@@ -210,6 +212,7 @@
       <div class="ttl"><h2>Vendas por canal</h2><span class="r" style="font-size:12px;color:var(--mut)" id="canaisSub"></span></div>
       <div class="canais" id="canais"></div>
       <div class="cbar" id="canaisBar"></div>
+      <div class="cort" id="cort"></div>
     </div>
     <div class="grid kpis" id="kpis"></div>
   </section>
@@ -263,6 +266,7 @@
   <footer>Somente números agregados — nenhum dado pessoal dos atletas é publicado.<br>Fonte: relatório de Inscritos da Ticket Sports + confirmações de pedido por e-mail.</footer>
 </div>
 <script src="dados.js"></script>
+<script src="extras.js"></script>
 <script>
 // Endereço do Apps Script que lê as confirmações de pedido no Gmail (vazio = só o CSV).
 const EMAIL_FEED_URL = 'https://script.google.com/macros/s/AKfycbxJS5Gr-g8wJmlguCY7TyJ5a5sbSC-7TL0JMTd5dJidZPz84ZBN1I3BeOpDcymJWQzvvg/exec';
@@ -275,7 +279,9 @@ const ENCERRAMENTO = '2026-10-25';
 // Cupons de parceiros: entram sozinhos no quadro (todos menos os internos abaixo), ordenados por uso.
 const CUPONS_INTERNOS = ['Sem cupom', 'PCD150', '200 CUPONS 10', '10ANOSBP10KM', '10ANOSBP5KM'];
 const BASE = window.BPRUN.inscricoes;
-let ALL = BASE;
+const EXTRAS = window.BPRUN_EXTRAS || {};
+const colabRows = list => (list||[]).map(r=>({ d:r.d, h:r.h, m:r.m, s:null, i:r.i==null?null:r.i, o:'Colaboradores', c:'Colaboradores', t:r.t||'—', p:r.p, k:null }));
+let ALL = BASE.concat(colabRows(EXTRAS.colab));
 let EMAIL_INFO = null;
 let completo = false; // vira true quando o total já inclui os e-mails (o cartão principal só fica azul aí)
 const MODS = ['5 km','10 km','5 km PCD','5 km PCD Cadeirante','5 km PCD Visual'];
@@ -370,6 +376,8 @@ function render(){
     canal('','var(--c4)','PDV (lojas)',nPdv,hojePdv) +
     canal('','var(--c5)','Colaboradores',nCol,hojeCol);
   $('canaisBar').innerHTML = N ? `<div style="width:${nTs/N*100}%;background:var(--blue)"></div><div style="width:${nPdv/N*100}%;background:var(--c4)"></div><div style="width:${nCol/N*100}%;background:var(--c5)"></div>` : '';
+  const cortes = EXTRAS.cortesias;
+  $('cort').innerHTML = cortes ? `<span>🎁 Cortesias de patrocinadores (fora do total de vendidos)</span><span>previstas: <b>${fmt(cortes.previstas)}</b></span><span>confirmadas: <b>${fmt(cortes.confirmadas)}</b></span><span>${Object.entries(cortes.por_pacote).map(([k,v])=>k+' '+v).join(' · ')}</span>` : '';
   $('canaisSub').textContent = per ? `últimos ${per} dias` : 'todo o período';
 
   // ---- gráfico de barras ----
@@ -559,7 +567,8 @@ function aplicarFeed(feed){
       // o e-mail não traz o nome do cupom (só o desconto); o nome chega com o próximo relatório CSV
       k: r.dp==null ? null : !r.dp ? 'Sem cupom' : 'Com cupom — identificado no próximo relatório' }));
   // vendas no PDV (formulário das lojas): já chegam anônimas e sem repetição; não estão na Ticket Sports
-  const colab = (feed.colab||[]).map(r=>({ d:r.d, h:r.h, m:r.m, s:null, i:r.i==null?null:r.i, o:'Colaboradores', c:'Colaboradores', t:r.t||'—', p:r.p, k:null }));
+  // colaboradores: versão automática do script; se ainda não vier, usa a lista anônima de extras.js
+  const colab = colabRows((feed.colab && feed.colab.length) ? feed.colab : EXTRAS.colab);
   const pdv = (feed.pdv||[]).map(r=>({ d:r.d, h:r.h, m:r.m, s:r.s||null, i:r.i==null?null:r.i, o:'PDV (loja)', c:'PDV (loja)', t:r.t||'—', p:r.p, k:null, v:r.v||null }));
   ALL = BASE.concat(novos, pdv, colab); ALL_DAYS = calcDays();
   EMAIL_INFO = { novos:novos.length, pdv:pdv.length, ate:feed.atualizado||'' };
