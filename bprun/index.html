@@ -391,7 +391,7 @@ function render(){
     const top = emp.slice(0,12), resto = emp.slice(12).reduce((s,[,v])=>s+v,0), mx = Math.max(1, ...top.map(p=>p[1]));
     if (resto) top.push([`Outras (${emp.length-12})`, resto]);
     $('cortBox').innerHTML = `<div class="canais" style="margin-bottom:14px">
-      ${cTile('var(--blue)','Cortesias com nome',conf,`<small>de ${fmt(cortes.previstas)} cotas · ${emp.length} parceiros</small>`)}
+      ${cTile('var(--blue)','Cortesias com nome',conf,`<small>${emp.length} parceiros</small>`)}
       ${cTile('var(--up)','5 km / 10 km',mods['5 km']||0,`<small>5 km · <b style="display:inline;font-size:inherit;color:inherit">${fmt(mods['10 km']||0)}</b> no 10 km</small>`)}
       ${cTile('var(--c4)','Já inscritos na TS',cortes.ja_na_ts||0,'<small>também compraram kit</small>')}
       ${cTile('var(--c5)','Vendidos + cortesias',N+conf-(cortes.ja_na_ts||0),'<small>kits totais na largada</small>')}
