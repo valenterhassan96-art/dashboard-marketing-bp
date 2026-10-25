@@ -91,7 +91,8 @@
   .gk span{font-size:12px;color:var(--mut)}
   .gk b{display:flex;align-items:center;gap:8px;font-size:24px;font-weight:600;margin:6px 0 4px;letter-spacing:-.4px}
   .gk small{font-size:11.5px;color:var(--mut)}
-  .canais{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .canais{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  @media (max-width:1000px){ .canais{grid-template-columns:1fr 1fr} }
   .canal{background:var(--track);border-radius:16px;padding:14px 16px;border-left:5px solid var(--cc)}
   .canal span{font-size:12.5px;color:var(--mut);display:flex;align-items:center;gap:7px}
   .canal span i{width:9px;height:9px;border-radius:50%;background:var(--cc)}
@@ -281,7 +282,8 @@ const CUPONS_INTERNOS = ['Sem cupom', 'PCD150', '200 CUPONS 10', '10ANOSBP10KM',
 const BASE = window.BPRUN.inscricoes;
 const EXTRAS = window.BPRUN_EXTRAS || {};
 const colabRows = list => (list||[]).map(r=>({ d:r.d, h:r.h, m:r.m, s:null, i:r.i==null?null:r.i, o:'Colaboradores', c:'Colaboradores', t:r.t||'—', p:r.p, k:null }));
-let ALL = BASE.concat(colabRows(EXTRAS.colab));
+const grupoRows = list => (list||[]).map(r=>({ d:r.d, h:r.h, m:r.m, s:null, i:null, o:'Grupos (fora da TS)', c:'Grupos (fora da TS)', t:r.t||'—', q:r.q, p:r.p, k:null }));
+let ALL = BASE.concat(colabRows(EXTRAS.colab), grupoRows(EXTRAS.grupos));
 let EMAIL_INFO = null;
 let completo = false; // vira true quando o total já inclui os e-mails (o cartão principal só fica azul aí)
 const MODS = ['5 km','10 km','5 km PCD','5 km PCD Cadeirante','5 km PCD Visual'];
@@ -367,15 +369,18 @@ function render(){
     kpi('',ICON.pulse,'var(--blue)','Média por dia (7d)',media7.toFixed(1).replace('.',','),badge(media7,mediaAnt),`melhor dia: <b>${fmt(peak[1])}</b>${peak[0]?' em '+fd(peak[0]):''}`);
 
   // ---- vendas por canal: Ticket Sports (relatório + e-mails) x PDV (formulário das lojas) ----
-  const ehPdv = r => r.o==='PDV (loja)', ehCol = r => r.o==='Colaboradores';
-  const nPdv = rows.filter(ehPdv).length, nCol = rows.filter(ehCol).length, nTs = N - nPdv - nCol;
-  const hojePdv = base.filter(r=>r.d===diaHoje && ehPdv(r)).length, hojeCol = base.filter(r=>r.d===diaHoje && ehCol(r)).length, hojeTs = nHoje - hojePdv - hojeCol;
+  const ehPdv = r => r.o==='PDV (loja)', ehCol = r => r.o==='Colaboradores', ehGrp = r => r.o==='Grupos (fora da TS)';
+  const nPdv = rows.filter(ehPdv).length, nCol = rows.filter(ehCol).length, nGrp = rows.filter(ehGrp).length, nTs = N - nPdv - nCol - nGrp;
+  const hj = f => base.filter(r=>r.d===diaHoje && f(r)).length;
+  const hojePdv = hj(ehPdv), hojeCol = hj(ehCol), hojeGrp = hj(ehGrp), hojeTs = nHoje - hojePdv - hojeCol - hojeGrp;
+  const pend = Object.values(EXTRAS.grupos_pendentes||{}).reduce((a,b)=>a+b,0);
   const canal = (cls,cor,nome,n,hj,extra)=>`<div class="canal ${cls}" style="--cc:${cor}"><span><i></i>${nome}</span>
     <b>${fmt(n)}<em>${cls==='tot'?'kits':pct(n,N)}</em></b><small>hoje: <b style="display:inline;font-size:inherit;color:inherit">${fmt(hj)}</b>${extra||''}</small></div>`;
   $('canais').innerHTML = canal('','var(--blue)','Ticket Sports (site e app)',nTs,hojeTs) +
     canal('','var(--c4)','PDV (lojas)',nPdv,hojePdv) +
-    canal('','var(--c5)','Colaboradores',nCol,hojeCol);
-  $('canaisBar').innerHTML = N ? `<div style="width:${nTs/N*100}%;background:var(--blue)"></div><div style="width:${nPdv/N*100}%;background:var(--c4)"></div><div style="width:${nCol/N*100}%;background:var(--c5)"></div>` : '';
+    canal('','var(--c5)','Colaboradores',nCol,hojeCol) +
+    canal('','var(--up)','Grupos (fora da TS)',nGrp,hojeGrp, pend ? ` · ${fmt(pend)} aguardando pagamento` : '');
+  $('canaisBar').innerHTML = N ? `<div style="width:${nTs/N*100}%;background:var(--blue)"></div><div style="width:${nPdv/N*100}%;background:var(--c4)"></div><div style="width:${nCol/N*100}%;background:var(--c5)"></div><div style="width:${nGrp/N*100}%;background:var(--up)"></div>` : '';
   const cortes = EXTRAS.cortesias;
   $('cort').innerHTML = cortes ? `<span>🎁 Cortesias de patrocinadores (fora do total de vendidos)</span><span>previstas: <b>${fmt(cortes.previstas)}</b></span><span>confirmadas: <b>${fmt(cortes.confirmadas)}</b></span><span>${Object.entries(cortes.por_pacote).map(([k,v])=>k+' '+v).join(' · ')}</span>` : '';
   $('canaisSub').textContent = per ? `últimos ${per} dias` : 'todo o período';
@@ -570,7 +575,7 @@ function aplicarFeed(feed){
   // colaboradores: versão automática do script; se ainda não vier, usa a lista anônima de extras.js
   const colab = colabRows((feed.colab && feed.colab.length) ? feed.colab : EXTRAS.colab);
   const pdv = (feed.pdv||[]).map(r=>({ d:r.d, h:r.h, m:r.m, s:r.s||null, i:r.i==null?null:r.i, o:'PDV (loja)', c:'PDV (loja)', t:r.t||'—', p:r.p, k:null, v:r.v||null }));
-  ALL = BASE.concat(novos, pdv, colab); ALL_DAYS = calcDays();
+  ALL = BASE.concat(novos, pdv, colab, grupoRows(EXTRAS.grupos)); ALL_DAYS = calcDays();
   EMAIL_INFO = { novos:novos.length, pdv:pdv.length, ate:feed.atualizado||'' };
   completo = true;
   setMeta();
