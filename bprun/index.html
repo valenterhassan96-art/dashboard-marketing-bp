@@ -82,6 +82,9 @@
   .gauge-wrap{position:relative;max-width:300px;margin:4px auto 0}
   .gauge-c{position:absolute;left:0;right:0;bottom:6px;text-align:center}
   .gauge-c b{display:block;font-size:30px;font-weight:600;letter-spacing:-.6px}
+  .gcomp{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin:10px 0 14px}
+  .gcomp span{background:var(--track);border-radius:999px;padding:5px 11px;font-size:12px;color:var(--mut);white-space:nowrap}
+  .gcomp b{color:var(--ink,#111827);font-weight:600}
   .gauge-c small{font-size:11.5px;color:var(--mut)}
   .minis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
   .mini{background:var(--track);border-radius:16px;padding:12px 14px}
@@ -236,6 +239,7 @@
       <div class="ttl"><h2>Meta de inscritos</h2></div>
       <div class="gauge-wrap"><svg id="gauge" viewBox="0 0 300 165" width="100%"></svg>
         <div class="gauge-c"><b id="gPct">—</b><small id="gSub"></small></div></div>
+      <div class="gcomp" id="gComp"></div>
       <div class="minis" id="minis"></div>
     </div>
   </section>
@@ -446,7 +450,8 @@ function render(){
   }
   $('gauge').innerHTML = g;
   $('gPct').textContent = (totalAll/META_KITS*100).toFixed(1).replace('.',',')+'%';
-  $('gSub').textContent = `${fmt(totalAll)} de ${fmt(META_KITS)} kits` + (nCort||nRes?` · inclui ${[nCort?fmt(nCort)+' cortesias':'',...Object.entries(EXTRAS.reservas||{}).map(([k,v])=>fmt(v)+' reservadas ('+k.toLowerCase()+')')].filter(Boolean).join(' + ')}`:'');
+  $('gSub').textContent = `${fmt(totalAll)} de ${fmt(META_KITS)} kits`;
+  $('gComp').innerHTML = (nCort||nRes) ? [['Vendidos',base.length],['Cortesias',nCort],...Object.entries(EXTRAS.reservas||{})].filter(x=>x[1]).map(([k,v])=>`<span>${k} <b>${fmt(v)}</b></span>`).join('') : '';
   const comSexo = rows.filter(r=>r.s!=null), fem = comSexo.filter(r=>r.s==='F').length;
   const pcd = rows.filter(r=>r.m.includes('PCD')).length;
   $('minis').innerHTML = `<div class="mini"><span>Faltam para a meta</span><b>${fmt(Math.max(0,META_KITS-totalAll))}</b></div>
