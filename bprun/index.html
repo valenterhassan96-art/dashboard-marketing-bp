@@ -99,6 +99,9 @@
   .canal b{display:flex;align-items:baseline;gap:8px;font-size:28px;font-weight:600;letter-spacing:-.6px;margin:6px 0 4px;font-variant-numeric:tabular-nums}
   .canal b em{font-style:normal;font-size:13px;font-weight:500;color:var(--mut);letter-spacing:0}
   .canal small{font-size:11.5px;color:var(--mut)}
+  .canal.hero{background:linear-gradient(160deg,#2f6bff 0%,#3d7bff 55%,#6f9bff 100%);color:#fff;border-left-color:#fff}
+  .canal.hero span,.canal.hero small,.canal.hero b em{color:rgba(255,255,255,.9)}
+  .canal.hero span i{background:#fff}
   .canal.tot{background:var(--dark);color:#fff;border-left-color:var(--blue)}
   .canal.tot span,.canal.tot small,.canal.tot b em{color:rgba(255,255,255,.75)}
   .cbar{display:flex;height:10px;border-radius:99px;overflow:hidden;margin-top:14px;background:var(--track)}
@@ -385,7 +388,7 @@ function render(){
     canal('','var(--up)','Grupos (fora da TS)',nGrp,hojeGrp, nGrp ? ' · pagamento a confirmar' : '');
   $('canaisBar').innerHTML = N ? `<div style="width:${nTs/N*100}%;background:var(--blue)"></div><div style="width:${nPdv/N*100}%;background:var(--c4)"></div><div style="width:${nCol/N*100}%;background:var(--c5)"></div><div style="width:${nGrp/N*100}%;background:var(--up)"></div>` : '';
   const cortes = EXTRAS.cortesias;
-  const cTile = (cor,nome,n,sub)=>`<div class="canal" style="--cc:${cor}"><span><i></i>${nome}</span><b>${fmt(n)}</b>${sub}</div>`;
+  const cTile = (cor,nome,n,sub,cls='')=>`<div class="canal ${cls}" style="--cc:${cor}"><span><i></i>${nome}</span><b>${fmt(n)}</b>${sub}</div>`;
   if (cortes){
     const conf = cortes.confirmadas||0, mods = cortes.por_mod||{}, emp = Object.entries(cortes.por_empresa||{});
     const top = emp.slice(0,12), resto = emp.slice(12).reduce((s,[,v])=>s+v,0), mx = Math.max(1, ...top.map(p=>p[1]));
@@ -394,7 +397,7 @@ function render(){
       ${cTile('var(--blue)','Cortesias com nome',conf,`<small>${emp.length} parceiros</small>`)}
       ${cTile('var(--up)','5 km / 10 km',mods['5 km']||0,`<small>5 km · <b style="display:inline;font-size:inherit;color:inherit">${fmt(mods['10 km']||0)}</b> no 10 km</small>`)}
       ${cTile('var(--c4)','Já inscritos na TS',cortes.ja_na_ts||0,'<small>também compraram kit</small>')}
-      ${cTile('var(--c5)','Vendidos + cortesias',N+conf,'<small>kits totais na largada</small>')}
+      ${cTile('var(--c5)','Vendidos + cortesias',N+conf,'<small>kits totais na largada</small>',completo?'hero':'')}
     </div>
     <div style="display:grid;gap:9px">${top.map(([k,v])=>`<div style="display:grid;grid-template-columns:150px 1fr 40px;align-items:center;gap:10px;font-size:13px"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${k}</span><div style="background:var(--track);border-radius:8px;height:10px;overflow:hidden"><div style="width:${Math.min(100,v/mx*100)}%;height:100%;background:var(--blue);border-radius:8px"></div></div><b style="text-align:right">${fmt(v)}</b></div>`).join('')}</div>`;
   } else $('s-cort').style.display='none';
