@@ -387,15 +387,16 @@ function render(){
   const cortes = EXTRAS.cortesias;
   const cTile = (cor,nome,n,sub)=>`<div class="canal" style="--cc:${cor}"><span><i></i>${nome}</span><b>${fmt(n)}</b>${sub}</div>`;
   if (cortes){
-    const prev = cortes.previstas||0, conf = cortes.confirmadas||0, pend = Math.max(0, prev-conf);
-    const pac = Object.entries(cortes.por_pacote||{}).sort((a,b)=>b[1]-a[1]), mx = Math.max(1, ...pac.map(p=>p[1]));
+    const conf = cortes.confirmadas||0, mods = cortes.por_mod||{}, emp = Object.entries(cortes.por_empresa||{});
+    const top = emp.slice(0,12), resto = emp.slice(12).reduce((s,[,v])=>s+v,0), mx = Math.max(1, ...top.map(p=>p[1]));
+    if (resto) top.push([`Outras (${emp.length-12})`, resto]);
     $('cortBox').innerHTML = `<div class="canais" style="margin-bottom:14px">
-      ${cTile('var(--blue)','Previstas',prev,'<small>cotas dos patrocinadores</small>')}
-      ${cTile('var(--up)','Confirmadas',conf,`<small>${prev?pct(conf,prev):'—'} das previstas</small>`)}
-      ${cTile('var(--c4)','Pendentes',pend,'<small>aguardando confirmação</small>')}
-      ${cTile('var(--c5)','Vendidos + cortesias',N+conf,'<small>kits totais na largada</small>')}
+      ${cTile('var(--blue)','Cortesias com nome',conf,`<small>de ${fmt(cortes.previstas)} cotas · ${emp.length} parceiros</small>`)}
+      ${cTile('var(--up)','5 km / 10 km',mods['5 km']||0,`<small>5 km · <b style="display:inline;font-size:inherit;color:inherit">${fmt(mods['10 km']||0)}</b> no 10 km</small>`)}
+      ${cTile('var(--c4)','Já inscritos na TS',cortes.ja_na_ts||0,'<small>também compraram kit</small>')}
+      ${cTile('var(--c5)','Vendidos + cortesias',N+conf-(cortes.ja_na_ts||0),'<small>kits totais na largada</small>')}
     </div>
-    <div style="display:grid;gap:9px">${pac.map(([k,v])=>`<div style="display:grid;grid-template-columns:90px 1fr 40px;align-items:center;gap:10px;font-size:13px"><span>${k}</span><div style="background:var(--track);border-radius:8px;height:10px;overflow:hidden"><div style="width:${v/mx*100}%;height:100%;background:var(--blue);border-radius:8px"></div></div><b style="text-align:right">${fmt(v)}</b></div>`).join('')}</div>`;
+    <div style="display:grid;gap:9px">${top.map(([k,v])=>`<div style="display:grid;grid-template-columns:150px 1fr 40px;align-items:center;gap:10px;font-size:13px"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${k}</span><div style="background:var(--track);border-radius:8px;height:10px;overflow:hidden"><div style="width:${Math.min(100,v/mx*100)}%;height:100%;background:var(--blue);border-radius:8px"></div></div><b style="text-align:right">${fmt(v)}</b></div>`).join('')}</div>`;
   } else $('s-cort').style.display='none';
   $('canaisSub').textContent = per ? `últimos ${per} dias` : 'todo o período';
 
