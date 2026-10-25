@@ -399,6 +399,7 @@ function render(){
       ${cTile('var(--c4)','Já inscritos na TS',cortes.ja_na_ts||0,'<small>também compraram kit</small>')}
       ${cTile('var(--c5)','Vendidos + cortesias',N+conf,'<small>kits totais na largada</small>',completo?'hero':'')}
     </div>
+    ${Object.entries(EXTRAS.reservas||{}).map(([k,v])=>`<div style="font-size:13px;margin:-4px 0 14px;color:var(--mut)">🩸 Vagas reservadas · ${k}: <b style="color:var(--ink,inherit)">${fmt(v)}</b> (entram na meta)</div>`).join('')}
     <div style="display:grid;gap:9px">${top.map(([k,v])=>`<div style="display:grid;grid-template-columns:150px 1fr 40px;align-items:center;gap:10px;font-size:13px"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${k}</span><div style="background:var(--track);border-radius:8px;height:10px;overflow:hidden"><div style="width:${Math.min(100,v/mx*100)}%;height:100%;background:var(--blue);border-radius:8px"></div></div><b style="text-align:right">${fmt(v)}</b></div>`).join('')}</div>`;
   } else $('s-cort').style.display='none';
   $('canaisSub').textContent = per ? `últimos ${per} dias` : 'todo o período';
@@ -434,7 +435,7 @@ function render(){
   showTipAt(sel);
 
   // ---- medidor de meta ----
-  const nCort = (EXTRAS.cortesias&&EXTRAS.cortesias.confirmadas)||0, totalAll = base.length + nCort, prog = Math.min(1, totalAll/META_KITS), segs = 16;
+  const nCort = (EXTRAS.cortesias&&EXTRAS.cortesias.confirmadas)||0, nRes = Object.values(EXTRAS.reservas||{}).reduce((a,b)=>a+b,0), totalAll = base.length + nCort + nRes, prog = Math.min(1, totalAll/META_KITS), segs = 16;
   let g=''; const cx0=150, cy0=150, r0=92, r1=140;
   for (let i=0;i<segs;i++){
     const a0 = Math.PI*(1-i/segs)-0.035, a1 = Math.PI*(1-(i+1)/segs)+0.035;
@@ -445,7 +446,7 @@ function render(){
   }
   $('gauge').innerHTML = g;
   $('gPct').textContent = (totalAll/META_KITS*100).toFixed(1).replace('.',',')+'%';
-  $('gSub').textContent = `${fmt(totalAll)} de ${fmt(META_KITS)} kits` + (nCort?` · inclui ${fmt(nCort)} cortesias`:'');
+  $('gSub').textContent = `${fmt(totalAll)} de ${fmt(META_KITS)} kits` + (nCort||nRes?` · inclui ${[nCort?fmt(nCort)+' cortesias':'',...Object.entries(EXTRAS.reservas||{}).map(([k,v])=>fmt(v)+' reservadas ('+k.toLowerCase()+')')].filter(Boolean).join(' + ')}`:'');
   const comSexo = rows.filter(r=>r.s!=null), fem = comSexo.filter(r=>r.s==='F').length;
   const pcd = rows.filter(r=>r.m.includes('PCD')).length;
   $('minis').innerHTML = `<div class="mini"><span>Faltam para a meta</span><b>${fmt(Math.max(0,META_KITS-totalAll))}</b></div>
@@ -460,11 +461,11 @@ function render(){
   const hoje = serie[serie.length-1], ontem = serie[serie.length-2]||{n:0,acc:0}, anteontem = serie[serie.length-3]||{n:0};
   const hojeLocal = new Date(Date.now()-4*36e5).toISOString().slice(0,10); // Manaus (UTC−4)
   const parcial = hoje.d === hojeLocal;
-  const ritmo7 = ult7/7, faltam = Math.max(0, META_KITS-acum-nCort);
+  const ritmo7 = ult7/7, faltam = Math.max(0, META_KITS-acum-nCort-nRes);
   // prazo: encerramento das inscrições (inclui o dia de hoje e o dia do encerramento)
   const diasRest = Math.max(0, Math.round((new Date(ENCERRAMENTO+'T12:00') - new Date(hojeLocal+'T12:00'))/864e5) + 1);
   const precisaDia = diasRest ? Math.ceil(faltam/diasRest) : null;
-  const projecao = acum + nCort + Math.round(ritmo7*diasRest) - (parcial ? hoje.n : 0);
+  const projecao = acum + nCort + nRes + Math.round(ritmo7*diasRest) - (parcial ? hoje.n : 0);
   const gpct = v => v==null ? '—' : '+'+(v*100).toFixed(1).replace('.',',')+'%';
   const gk = (lbl,val,bdg,sub)=>`<div class="gk"><span>${lbl}</span><b>${val}${bdg}</b><small>${sub}</small></div>`;
   $('crescSub').textContent = `último dia com dados: ${fd(hoje.d)}`;
